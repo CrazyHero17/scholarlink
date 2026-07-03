@@ -37,7 +37,7 @@ try {
             <img src="https://images.unsplash.com/photo-1541339907198-e08756defefe?q=80&w=1470" class="absolute inset-0 w-full h-full object-cover opacity-20">
             <div class="absolute inset-0 bg-gradient-to-b from-green-600/50 to-slate-900/90 z-10"></div>
             <div class="relative z-20">
-                <img src="assets/img/tau_logo.png" alt="TAU Logo" class="h-28 w-auto mb-10">
+                <a href="index.php"><img src="assets/img/tau_logo.png" alt="TAU Logo" class="h-28 w-auto mb-10"></a>
                 <div class="space-y-3">
                     <span class="inline-block px-4 py-1 rounded-full bg-green-500/20 text-green-300 text-xs font-bold uppercase tracking-widest">Student Portal</span>
                     <h1 class="text-6xl font-black text-white leading-tight tracking-tighter">Welcome<br>Back.</h1>
@@ -52,7 +52,7 @@ try {
 
         <div class="w-full md:w-1/2 p-6 sm:p-10 md:p-20 flex flex-col justify-center relative">
             <div class="md:hidden mb-8 text-center">
-                <img src="assets/img/tau_logo.png" alt="TAU Logo" class="h-20 w-auto mx-auto">
+                <a href="index.php"><img src="assets/img/tau_logo.png" alt="TAU Logo" class="h-20 w-auto mx-auto"></a>
             </div>
 
             <div class="max-w-md mx-auto w-full">

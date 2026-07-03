@@ -11,13 +11,13 @@ try {
     }
 } catch(PDOException $e) {}
 
-// Setup Fallbacks if database is empty
-$hero_title = $cms['hero']['title'] ?? 'Unlock your future with ScholarLink.';
-$hero_body = $cms['hero']['body'] ?? 'Discover financial assistance programs, track your applications, and focus on your education. Browse every TAU grant below to get started.';
-$grants_title = $cms['grants_header']['title'] ?? 'Scholarships & Grants';
-$grants_body = $cms['grants_header']['body'] ?? 'Every scholarship on ScholarLink — active, upcoming, and closed.';
-$no_grants_title = $cms['no_grants']['title'] ?? 'No scholarships available';
-$no_grants_body = $cms['no_grants']['body'] ?? 'Please check back later.';
+// Setup Fallbacks (Upgraded with Persuasive Copywriting)
+$hero_title = $cms['hero']['title'] ?? 'Fund your future with ScholarLink.';
+$hero_body = $cms['hero']['body'] ?? "Don't let finances limit your potential. Access exclusive TAU grants, build your secure document vault, and apply to multiple scholarships with just one click.";
+$grants_title = $cms['grants_header']['title'] ?? 'Available Scholarships & Grants';
+$grants_body = $cms['grants_header']['body'] ?? 'Explore opportunities tailored for your course and year level.';
+$no_grants_title = $cms['no_grants']['title'] ?? 'No scholarships available right now';
+$no_grants_body = $cms['no_grants']['body'] ?? 'We are preparing new grants for you. Please check back later!';
 
 // Fetch every scholarship regardless of status, with active ones surfaced first
 try {
@@ -32,17 +32,15 @@ try {
     $all_scholarships = [];
 }
 
-// ✨ NEW: Map scholarships into a JSON-friendly array for the Modal
+// Map scholarships into a JSON-friendly array
 $jsScholarshipMap = [];
 $active_scholarship_count = 0;
 $total_active_award_value = 0;
 $nearest_active_deadline = null;
 
 foreach ($all_scholarships as $sch) {
-    // Add to JS Map
     $jsScholarshipMap[$sch['ScholarshipID']] = $sch;
 
-    // Calculate Quick Facts
     if (strtolower($sch['Status'] ?? '') === 'active') {
         $active_scholarship_count++;
         $total_active_award_value += (float) ($sch['AwardAmount'] ?? 0);
@@ -67,9 +65,43 @@ $heroSlides = [
     'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1800&q=80'
 ];
 
-// Maps a raw Status value to a display label + badge color class
-function scholarship_status_meta($status) {
+// Dynamic Program Image Matcher (With Unsplash Security Parameters)
+function getProgramImage($programName) {
+    $prog = strtolower($programName ?? '');
+    $params = '?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+    
+    if (strpos($prog, 'information technology') !== false || strpos($prog, 'computer') !== false || strpos($prog, 'it') !== false) {
+        return 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97' . $params;
+    } elseif (strpos($prog, 'agri') !== false || strpos($prog, 'forest') !== false) {
+        return 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449' . $params;
+    } elseif (strpos($prog, 'education') !== false || strpos($prog, 'teach') !== false || strpos($prog, 'ed') !== false) {
+        return 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655' . $params;
+    } elseif (strpos($prog, 'engineer') !== false || strpos($prog, 'arch') !== false) {
+        return 'https://images.unsplash.com/photo-1581092160562-40aa08e78837' . $params;
+    } elseif (strpos($prog, 'business') !== false || strpos($prog, 'account') !== false || strpos($prog, 'manage') !== false) {
+        return 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40' . $params;
+    } elseif (strpos($prog, 'vet') !== false || strpos($prog, 'med') !== false || strpos($prog, 'health') !== false || strpos($prog, 'sci') !== false) {
+        return 'https://images.unsplash.com/photo-1532094349884-543bc11b234d' . $params;
+    }
+    
+    return 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1' . $params; 
+}
+
+// Dynamic Urgency Logic
+function scholarship_status_meta($status, $deadline = null) {
     $status = $status ?: 'Active';
+    
+    if (strtolower($status) === 'active' && !empty($deadline)) {
+        $days_left = floor((strtotime($deadline) - strtotime('today')) / 86400);
+        if ($days_left < 0) {
+            return ['label' => 'Expired', 'class' => 'status-closed'];
+        } elseif ($days_left === 0) {
+            return ['label' => '🚨 Ends Today!', 'class' => 'status-urgent animate-pulse'];
+        } elseif ($days_left <= 7) {
+            return ['label' => '🔥 ' . $days_left . ' Days Left', 'class' => 'status-urgent'];
+        }
+    }
+
     switch (strtolower($status)) {
         case 'active': return ['label' => 'Active', 'class' => 'status-active'];
         case 'closed':
@@ -98,6 +130,11 @@ if ($is_logged_in) {
     <title>ScholarLink - Tarlac Agricultural University</title>
     <link rel="icon" type="image/png" href="assets/img/tau_logo.png">
     
+    <!-- PWA Settings -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#198754">
+    <link rel="apple-touch-icon" href="assets/img/tau_logo.png">
+    
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -120,18 +157,11 @@ if ($is_logged_in) {
         * { box-sizing: border-box; }
         html { scroll-behavior: smooth; }
 
-        body {
-            margin: 0;
-            color: var(--ink);
-            background: var(--wash);
-            font-family: 'Plus Jakarta Sans', Arial, sans-serif;
-            line-height: 1.6;
-        }
-
+        body { margin: 0; color: var(--ink); background: var(--wash); font-family: 'Plus Jakarta Sans', Arial, sans-serif; line-height: 1.6; }
         a { color: inherit; text-decoration: none; }
         img { display: block; max-width: 100%; }
 
-        /* HEADER */
+        /* HEADER & TICKER */
         .site-header { position: sticky; top: 0; left: 0; right: 0; z-index: 50; background: rgba(255, 255, 255, 0.95); box-shadow: 0 7px 20px rgba(0, 0, 0, 0.06); backdrop-filter: blur(14px); }
         .nav-shell { width: min(var(--page-max), calc(100% - (var(--page-gutter) * 2))); margin: 0 auto; min-height: 82px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
         .brand { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
@@ -140,18 +170,35 @@ if ($is_logged_in) {
         .brand strong { display: block; font-size: 1.05rem; letter-spacing: -0.02em; color: var(--ink); }
         .brand span { display: block; color: var(--gold); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
 
-        .nav-links { display: flex; align-items: center; gap: 24px; color: var(--ink); font-size: 0.9rem; font-weight: 700; }
         .nav-links a:not(.login-link) { position: relative; color: var(--ink); font-weight: 800; }
         .nav-links a:not(.login-link)::after { content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 2px; background: var(--green); transform: scaleX(0); transition: transform 0.2s ease; }
         .nav-links a:not(.login-link):hover::after { transform: scaleX(1); }
 
-        .login-link, .btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px; border-radius: 8px; background: var(--green) !important; border: 1px solid var(--green) !important; color: #fff !important; font-weight: 800; transition: all 0.2s ease; box-shadow: 0 10px 20px rgba(25, 135, 84, 0.15); }
+        .hamburger { display: none; background: transparent; border: none; font-size: 1.5rem; color: var(--ink); cursor: pointer; padding: 0; }
+
+        @keyframes pulse-soft {
+            0% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.4); }
+            70% { box-shadow: 0 0 0 12px rgba(25, 135, 84, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0); }
+        }
+
+        .login-link, .btn-primary { 
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px; border-radius: 8px; 
+            background: var(--green) !important; border: 1px solid var(--green) !important; color: #fff !important; font-weight: 800; 
+            transition: all 0.2s ease; box-shadow: 0 10px 20px rgba(25, 135, 84, 0.15); 
+        }
+        .btn-apply-pulse { animation: pulse-soft 2s infinite; }
         .login-link:hover, .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(25, 135, 84, 0.25); }
         .btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px; border-radius: 8px; font-weight: 800; background: #fff; color: var(--green) !important; border: 1px solid #fff; transition: all 0.2s ease; }
         .btn-ghost:hover { background: rgba(255, 255, 255, 0.9); transform: translateY(-2px); }
 
+        /* MOBILE MENU ANIMATIONS */
+        #mobileMenu { transform-origin: top; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .mobile-menu-active { transform: scaleY(1); opacity: 1; visibility: visible; }
+        .mobile-menu-hidden { transform: scaleY(0); opacity: 0; visibility: hidden; }
+
         /* HERO SECTION */
-        .hero { min-height: 680px; display: flex; align-items: center; position: relative; overflow: hidden; background: linear-gradient(135deg, #0f5132 0%, #198754 100%); padding: 80px 0 120px; color: #fff; }
+        .hero { min-height: 720px; display: flex; align-items: center; position: relative; overflow: hidden; background: linear-gradient(135deg, #0f5132 0%, #198754 100%); padding: 80px 0 160px; color: #fff; }
         .hero::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(5, 46, 22, 0.95), rgba(15, 81, 50, 0.75) 52%, rgba(21, 128, 61, 0.4)), linear-gradient(45deg, rgba(6, 95, 70, 0.3), rgba(255, 255, 255, 0.1)); pointer-events: none; }
 
         .hero-slideshow { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: #0f5132; }
@@ -176,92 +223,69 @@ if ($is_logged_in) {
         .hero-copy { max-width: 620px; margin: 0 0 34px; color: rgba(255, 255, 255, 0.88); font-size: 1.1rem; font-weight: 500; line-height: 1.75; }
         .hero-actions { display: flex; flex-wrap: wrap; gap: 14px; }
 
-        /* QUICK-FACTS PANEL */
-        .pull-top { position: relative; z-index: 5; margin-top: -72px; padding: 0 var(--page-gutter); }
-        .quick-guide-shell { width: min(var(--page-max), calc(100% - (var(--page-gutter) * 2))); margin: 0 auto; background: #fff; border-radius: 18px; box-shadow: 0 24px 60px rgba(15, 81, 50, 0.18); padding: 28px clamp(20px, 4vw, 40px); }
-        .quick-guide-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
-        .quick-guide-card { display: flex; align-items: center; gap: 16px; }
-        .quick-guide-card:not(:first-child) { border-left: 1px solid var(--line); padding-left: 24px; }
-        .quick-guide-icon { width: 52px; height: 52px; border-radius: 12px; background: var(--wash); color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
-        .quick-guide-card h3 { margin: 0; font-size: 1.5rem; color: var(--ink); line-height: 1.1; }
-        .quick-guide-card p { margin: 4px 0 0; color: var(--muted); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+        /* SMART MATCH & COMMAND CENTER */
+        .search-command-center {
+            position: relative; z-index: 10; margin: -60px auto 40px;
+            width: min(var(--page-max), calc(100% - (var(--page-gutter) * 2)));
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(16px);
+            border-radius: 1.5rem; box-shadow: 0 20px 50px rgba(15, 81, 50, 0.15); border: 1px solid var(--line);
+            padding: 24px; display: flex; flex-direction: column; gap: 16px;
+        }
+
+        .search-grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1.5fr 1fr;
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .search-wrap { position: relative; display: flex; align-items: center; width: 100%; }
+        .search-wrap i { position: absolute; left: 16px; color: var(--green); font-size: 1.1rem; pointer-events: none; }
+        .search-input { width: 100%; background: #f8fafc; border: 1px solid var(--line); color: var(--ink); font-size: 0.95rem; font-weight: 700; padding: 14px 16px 14px 44px; border-radius: 12px; outline: none; transition: all 0.2s ease; }
+        .search-input:focus { border-color: var(--green); background: #fff; box-shadow: 0 0 0 4px rgba(25, 135, 84, 0.1); }
+        
+        .search-command-center select { background: #f8fafc; border: 1px solid var(--line); color: var(--ink); font-size: 0.9rem; font-weight: 700; padding: 14px 16px; border-radius: 12px; outline: none; cursor: pointer; transition: all 0.2s ease; width: 100%; }
+        .search-command-center select:focus { border-color: var(--green); background: #fff; box-shadow: 0 0 0 4px rgba(25, 135, 84, 0.1); }
 
         /* GRANTS SECTION */
-        section { padding: 84px 0; }
+        section { padding: 40px 0 84px; }
         .section-inner { width: min(var(--page-max), calc(100% - (var(--page-gutter) * 2))); margin: 0 auto; }
-        .section-head { position: relative; max-width: 780px; margin-bottom: 40px; display: flex; flex-direction: column; gap: 8px; }
+        .section-head { position: relative; width: 100%; margin-bottom: 40px; }
         .section-head-top { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
         .section-kicker { color: var(--green); font-size: 0.8rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
-        .section-head h2 { margin: 0; font-size: clamp(1.9rem, 3.5vw, 2.8rem); line-height: 1.1; letter-spacing: -0.02em; color: var(--ink); }
-        .section-head p { margin: 0; color: var(--muted); font-weight: 500; font-size: 1.05rem; }
+        .section-head h2 { margin: 0 0 8px; font-size: clamp(1.9rem, 3.5vw, 2.8rem); line-height: 1.1; letter-spacing: -0.02em; color: var(--ink); }
+        .section-head p { margin: 0; color: var(--muted); font-weight: 500; font-size: 1.05rem; max-width: 600px; }
 
-        .filter-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .filter-controls select { background: #fff; border: 1px solid var(--line); color: var(--ink); font-size: 0.85rem; font-weight: 700; padding: 8px 12px; border-radius: 8px; outline: none; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-
-        /* SEARCH BAR */
-        .search-wrap { position: relative; display: flex; align-items: center; }
-        .search-wrap i { position: absolute; left: 14px; color: var(--muted); font-size: 0.85rem; pointer-events: none; }
-        .search-input { background: #fff; border: 1px solid var(--line); color: var(--ink); font-size: 0.85rem; font-weight: 600; padding: 9px 14px 9px 36px; border-radius: 8px; outline: none; box-shadow: 0 2px 8px rgba(0,0,0,0.04); min-width: 220px; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
-        .search-input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.12); }
-
-        /* SCROLL REVEAL */
-        .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.7s ease, transform 0.7s ease; }
-        .reveal.is-visible { opacity: 1; transform: translateY(0); }
-
-        /* HOW IT WORKS */
-        .how-it-works { background: #fff; }
-        .steps-track { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; margin-top: 8px; }
-        .steps-track::before { content: ""; position: absolute; top: 34px; left: 8%; right: 8%; height: 2px; background: var(--line); z-index: 0; }
-        .step-card { position: relative; z-index: 1; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; }
-        .step-number { width: 68px; height: 68px; border-radius: 50%; background: var(--green); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 900; box-shadow: 0 12px 26px rgba(25, 135, 84, 0.28); border: 6px solid #fff; }
-        .step-card h3 { margin: 0; font-size: 1.15rem; color: var(--ink); }
-        .step-card p { margin: 0; color: var(--muted); font-size: 0.92rem; max-width: 280px; }
-        .step-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: #eef8f1; color: var(--green); font-size: 0.7rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; }
-
-        /* FAQ */
-        .faq-layout { display: grid; grid-template-columns: 1.3fr 1fr; gap: 40px; align-items: start; }
-        .faq-list { display: flex; flex-direction: column; gap: 12px; }
-        .faq-visual { position: sticky; top: 110px; background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 28px; box-shadow: 0 20px 45px rgba(25, 135, 84, 0.1); display: flex; align-items: center; justify-content: center; }
-        .faq-visual svg { width: 100%; height: auto; max-width: 340px; }
-        .faq-item { border: 1px solid var(--line); border-radius: 12px; background: #fff; overflow: hidden; }
-        .faq-question { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 22px; background: none; border: none; cursor: pointer; text-align: left; font-family: inherit; font-size: 1rem; font-weight: 700; color: var(--ink); }
-        .faq-question i { color: var(--green); transition: transform 0.25s ease; flex-shrink: 0; }
-        .faq-item.is-open .faq-question i { transform: rotate(180deg); }
-        .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
-        .faq-answer-inner { padding: 0 22px 20px; color: var(--muted); font-size: 0.94rem; line-height: 1.7; }
-
-        /* CTA BANNER */
-        .cta-banner { background: linear-gradient(120deg, #0f5132, #198754); border-radius: 20px; padding: 48px clamp(24px, 5vw, 56px); display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; box-shadow: 0 24px 50px rgba(15, 81, 50, 0.25); }
-        .cta-banner h2 { margin: 0 0 8px; color: #fff; font-size: clamp(1.5rem, 3vw, 2.1rem); letter-spacing: -0.02em; }
-        .cta-banner p { margin: 0; color: rgba(255,255,255,0.85); font-size: 1rem; font-weight: 500; }
-        .cta-banner .btn-primary { background: #fff !important; border-color: #fff !important; color: var(--green) !important; white-space: nowrap; }
-        .cta-banner .btn-primary:hover { background: var(--wash) !important; }
-
-        /* PROGRAM CARDS */
+        /* PROGRAM CARDS WITH IMAGES */
         .program-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
-        .program-card { border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 10px 28px rgba(25, 135, 84, 0.08); display: flex; flex-direction: column; transition: transform 0.25s ease, box-shadow 0.25s ease; position: relative; overflow: hidden; }
-        .program-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--green); }
-        .program-card:hover { transform: translateY(-6px); box-shadow: 0 18px 38px rgba(25, 135, 84, 0.16); border-color: #b7e4ca; }
-        .program-body { padding: 28px; flex: 1; display: flex; flex-direction: column; }
-        .program-badge { width: fit-content; margin-bottom: 16px; padding: 6px 12px; border-radius: 6px; background: #eef8f1; color: var(--green); font-size: 0.75rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+        .program-card { border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 10px 28px rgba(25, 135, 84, 0.05); display: flex; flex-direction: column; transition: transform 0.25s ease, box-shadow 0.25s ease; position: relative; overflow: hidden; }
+        .program-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(25, 135, 84, 0.12); border-color: #b7e4ca; }
         
-        .status-pill { position: absolute; top: 16px; right: 16px; z-index: 2; padding: 4px 11px; border-radius: 999px; font-size: 0.66rem; font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; }
-        .status-active { background: #eaf7ee; color: #198754; }
-        .status-closed { background: #f1f2f4; color: #6b7280; }
-        .status-draft { background: #fff6e5; color: #b7791f; }
-        .status-upcoming { background: #eaf1ff; color: #2563eb; }
-        .status-default { background: #f1f2f4; color: #6b7280; }
+        .program-media { height: 180px; width: 100%; position: relative; overflow: hidden; background: #0f5132; }
+        .program-media img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+        .program-card:hover .program-media img { transform: scale(1.08); }
+        
+        .program-body { padding: 24px; flex: 1; display: flex; flex-direction: column; }
+        .program-badge { width: fit-content; margin-bottom: 12px; padding: 6px 12px; border-radius: 6px; background: #eef8f1; color: var(--green); font-size: 0.70rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+        
+        .status-pill { position: absolute; top: 16px; right: 16px; z-index: 10; padding: 6px 12px; border-radius: 999px; font-size: 0.7rem; font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .status-active { background: #eaf7ee; color: #198754; border: 1px solid #b7e4ca; }
+        .status-urgent { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .status-closed { background: #f1f2f4; color: #6b7280; border: 1px solid #d1d5db; }
+        .status-draft { background: #fff6e5; color: #b7791f; border: 1px solid #f6e05e; }
+        .status-upcoming { background: #eaf1ff; color: #2563eb; border: 1px solid #bfdbfe; }
+        .status-default { background: #f1f2f4; color: #6b7280; border: 1px solid #d1d5db; }
 
-        .program-body h3 { margin: 0 0 10px; font-size: 1.25rem; color: var(--ink); line-height: 1.3; }
-        .program-body p { margin: 0 0 20px; color: var(--muted); font-size: 0.94rem; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .program-body h3 { margin: 0 0 8px; font-size: 1.2rem; color: var(--ink); line-height: 1.3; }
+        .program-body p { margin: 0 0 20px; color: var(--muted); font-size: 0.92rem; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
         .fact-row { padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
-        .fact-row span { color: var(--muted); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
-        .fact-row strong { color: var(--ink); font-size: 0.95rem; font-weight: 800; }
+        .fact-row span { color: var(--muted); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+        .fact-row strong { color: var(--ink); font-size: 0.9rem; font-weight: 800; }
         .fact-row .highlight { color: var(--gold); }
 
-        .program-link { display: flex; width: 100%; border: none; cursor: pointer; align-items: center; justify-content: center; gap: 8px; margin-top: 24px; padding: 12px; border-radius: 8px; background: var(--wash); color: var(--green); font-size: 0.9rem; font-weight: 800; font-family: inherit; transition: all 0.2s ease; }
-        .program-card:hover .program-link { background: var(--green); color: #fff; }
+        .program-link { display: flex; width: 100%; border: none; cursor: pointer; align-items: center; justify-content: center; gap: 8px; margin-top: 24px; padding: 14px; border-radius: 10px; background: #f8fafc; color: var(--green); font-size: 0.9rem; font-weight: 900; font-family: inherit; transition: all 0.2s ease; border: 1px solid var(--line); }
+        .program-card:hover .program-link { background: var(--green); color: #fff; border-color: var(--green); }
 
         .pagination-controls { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--line); }
         .page-btn { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink); font-weight: 800; cursor: pointer; transition: all 0.2s ease; }
@@ -269,46 +293,102 @@ if ($is_logged_in) {
         .page-btn.active { background: var(--green); color: #fff; border-color: var(--green); box-shadow: 0 4px 12px rgba(25, 135, 84, 0.2); }
         .page-btn:disabled { background: var(--wash); color: #a0aec0; cursor: not-allowed; }
 
+        /* HOW IT WORKS */
+        .how-it-works { background: #fff; padding-top: 84px; }
+        .steps-track { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; margin-top: 16px; }
+        .steps-track::before { content: ""; position: absolute; top: 34px; left: 8%; right: 8%; height: 2px; background: var(--line); z-index: 0; border-style: dashed; }
+        .step-card { position: relative; z-index: 1; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+        .step-number { width: 68px; height: 68px; border-radius: 50%; background: var(--green); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 900; box-shadow: 0 12px 26px rgba(25, 135, 84, 0.28); border: 6px solid #fff; }
+        .step-card h3 { margin: 0; font-size: 1.25rem; color: var(--ink); font-weight: 900; }
+        .step-card p { margin: 0; color: var(--muted); font-size: 0.95rem; max-width: 280px; }
+        .step-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; background: #eef8f1; color: var(--green); font-size: 0.75rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #b7e4ca; }
+
+        /* SUCCESS STORIES */
+        .testimonials { background: var(--wash); padding-top: 84px; }
+        .testimonial-card { padding: 32px; border-radius: 24px; background: #fff; border: 1px solid var(--line); transition: transform 0.3s ease; }
+        .testimonial-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(25,135,84,0.06); border-color: var(--green); }
+
+        /* SCROLL REVEAL */
+        .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.7s ease, transform 0.7s ease; }
+        .reveal.is-visible { opacity: 1; transform: translateY(0); }
+
+        /* FAQ */
+        .faq-layout { display: grid; grid-template-columns: 1.3fr 1fr; gap: 40px; align-items: start; }
+        .faq-list { display: flex; flex-direction: column; gap: 12px; }
+        .faq-visual { position: sticky; top: 110px; background: #fff; border: 1px solid var(--line); border-radius: 24px; padding: 32px; box-shadow: 0 20px 45px rgba(25, 135, 84, 0.08); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .faq-item { border: 1px solid var(--line); border-radius: 12px; background: #fff; overflow: hidden; transition: all 0.3s ease; }
+        .faq-item:hover { border-color: var(--green); box-shadow: 0 4px 12px rgba(25,135,84,0.05); }
+        .faq-question { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; background: none; border: none; cursor: pointer; text-align: left; font-family: inherit; font-size: 1.05rem; font-weight: 800; color: var(--ink); }
+        .faq-question i { color: var(--green); transition: transform 0.25s ease; flex-shrink: 0; background: #eef8f1; padding: 8px; border-radius: 50%; }
+        .faq-item.is-open .faq-question i { transform: rotate(180deg); background: var(--green); color: #fff; }
+        .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+        .faq-answer-inner { padding: 0 24px 24px; color: var(--muted); font-size: 0.95rem; line-height: 1.7; font-weight: 500; }
+
+        /* CTA BANNER */
+        .cta-banner { background: linear-gradient(120deg, #0f5132, #198754); border-radius: 24px; padding: 56px clamp(24px, 5vw, 64px); display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap; box-shadow: 0 24px 50px rgba(15, 81, 50, 0.25); position: relative; overflow: hidden; }
+        .cta-banner::after { content: ""; position: absolute; top: -50%; right: -10%; width: 300px; height: 300px; background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%); border-radius: 50%; pointer-events: none; }
+        .cta-banner h2 { margin: 0 0 12px; color: #fff; font-size: clamp(1.8rem, 4vw, 2.5rem); letter-spacing: -0.02em; font-weight: 900; }
+        .cta-banner p { margin: 0; color: rgba(255,255,255,0.85); font-size: 1.1rem; font-weight: 500; max-width: 500px; }
+        .cta-banner .btn-primary { background: #fff !important; border-color: #fff !important; color: var(--green) !important; white-space: nowrap; font-size: 1.05rem; padding: 0 28px; min-height: 54px; }
+        .cta-banner .btn-primary:hover { background: var(--wash) !important; transform: scale(1.02); }
+
+        /* EMPTY STATE */
         .empty-state { grid-column: 1 / -1; padding: 64px 20px; text-align: center; background: #fff; border: 1px dashed #b7e4ca; border-radius: 16px; }
         .empty-state i { font-size: 3rem; color: #b7e4ca; margin-bottom: 16px; }
 
-        .site-footer { padding: 48px 0 32px; background: #1a1b1f; color: rgba(255, 255, 255, 0.7); }
+        /* FOOTER */
+        .site-footer { padding: 48px 0 32px; background: #1a1b1f; color: rgba(255, 255, 255, 0.7); border-top: 4px solid var(--green); }
         .footer-inner { width: min(var(--page-max), calc(100% - (var(--page-gutter) * 2))); margin: 0 auto; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 24px; }
-        .footer-logo { height: 48px; opacity: 0.8; margin-bottom: 8px; }
-        .footer-inner p { margin: 0; font-size: 0.9rem; }
+        .footer-logo { height: 56px; opacity: 0.9; margin-bottom: 8px; transition: transform 0.3s; }
+        .footer-logo:hover { transform: scale(1.05); opacity: 1; }
+        .footer-inner p { margin: 0; font-size: 0.95rem; }
         .footer-inner .small-text { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.1em; color: var(--gold); text-transform: uppercase; }
         .footer-social { margin-top: 16px; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.1); width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-        .social-link { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: 8px; background: #1877f2; color: #fff; font-weight: 700; font-size: 0.9rem; transition: transform 0.2s ease, box-shadow 0.2s ease; }
-        .social-link:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(24, 119, 242, 0.3); color: #fff; }
+        .social-link { display: inline-flex; align-items: center; gap: 10px; padding: 12px 24px; border-radius: 8px; background: #1877f2; color: #fff; font-weight: 700; font-size: 0.95rem; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .social-link:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(24, 119, 242, 0.3); color: #fff; }
 
         @media (max-width: 980px) {
             .program-grid { grid-template-columns: repeat(2, 1fr); }
-            .quick-guide-grid { grid-template-columns: 1fr; }
-            .quick-guide-card:not(:first-child) { border-left: none; padding-left: 0; border-top: 1px solid var(--line); padding-top: 16px; }
+            .search-grid { grid-template-columns: 1fr 1fr; }
+            .faq-layout { grid-template-columns: 1fr; }
+            .faq-visual { position: static; order: -1; margin-bottom: 24px; }
         }
-        @media (max-width: 720px) {
+        @media (max-width: 768px) {
             .nav-shell { min-height: 70px; }
-            .brand span, .nav-links a:not(.login-link) { display: none; }
+            .brand span { display: none; }
+            .nav-links { display: none; position: absolute; top: 100%; left: 0; right: 0; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(14px); flex-direction: column; padding: 24px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); border-top: 1px solid var(--line); z-index: 40; }
+            .nav-links.mobile-open { display: flex; }
+            .nav-links a { width: 100%; text-align: left; padding: 12px 0; border-bottom: 1px solid var(--line); }
+            .nav-links a:last-child { border-bottom: none; }
+            .nav-links .login-link { width: 100%; text-align: center; margin-top: 12px; }
+            .hamburger { display: block; }
+            
             .program-grid { grid-template-columns: 1fr; }
-            .hero { padding-bottom: 80px; }
+            .hero { padding-bottom: 140px; }
             .hero h1 { font-size: 2.2rem; }
-            .section-head-top { flex-direction: column; align-items: flex-start; }
             .hero-actions { flex-direction: column; width: 100%; max-width: 300px; }
             .hero-actions a { width: 100%; }
-            .pull-top { margin-top: -56px; }
+            .search-command-center { margin-top: -40px; padding: 20px; }
+            .search-grid { grid-template-columns: 1fr; }
+            .section-head-top { flex-direction: column; align-items: flex-start; }
             .steps-track { grid-template-columns: 1fr; gap: 36px; }
             .steps-track::before { display: none; }
-            .search-input { min-width: 100%; }
-            .filter-controls { width: 100%; }
-            .filter-controls select, .search-wrap { width: 100%; }
-            .cta-banner { flex-direction: column; text-align: center; }
-            .faq-layout { grid-template-columns: 1fr; }
-            .faq-visual { position: static; order: -1; }
+            .cta-banner { flex-direction: column; text-align: center; padding: 40px 24px; }
+            .cta-banner .btn-primary { width: 100%; }
         }
     </style>
 </head>
 <body>
     
+    <!-- LIVE ANNOUNCEMENT TICKER -->
+    <div class="bg-yellow-400 text-yellow-950 px-4 py-2.5 text-center text-[10px] sm:text-xs font-black uppercase tracking-widest relative z-[60] flex items-center justify-center gap-3">
+        <span class="flex h-2 w-2 relative">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+        </span>
+        📢 Application for A.Y. 2026-2027 is now open! Secure your slots early via ScholarLink.
+    </div>
+
     <header class="site-header">
         <nav class="nav-shell" aria-label="Primary navigation">
             <a class="brand" href="index.php">
@@ -318,23 +398,31 @@ if ($is_logged_in) {
                     <span>Tarlac Agricultural University</span>
                 </span>
             </a>
-            <div class="nav-links">
-                <a href="#grants">Grants</a>
+            
+            <!-- Links -->
+            <div class="nav-links" id="navLinks">
+                <a href="#grants" onclick="document.getElementById('navLinks').classList.remove('mobile-open')">Grants</a>
+                <a href="#how-it-works" onclick="document.getElementById('navLinks').classList.remove('mobile-open')">How It Works</a>
+                <a href="#faq" onclick="document.getElementById('navLinks').classList.remove('mobile-open')">FAQ</a>
                 <?php if ($is_logged_in): ?>
-                    <a class="login-link" href="<?= $role_redirect ?>">
+                    <a class="login-link btn-apply-pulse" href="<?= $role_redirect ?>">
                         Dashboard <i class="fas fa-arrow-right ml-1"></i>
                     </a>
                 <?php else: ?>
                     <a href="student_login.php">Sign In</a>
-                    <a class="login-link" href="student_login.php">
-                        Apply Now
-                    </a>
+                    <a class="login-link btn-apply-pulse" href="student_login.php">Apply Now</a>
                 <?php endif; ?>
             </div>
+
+            <!-- Mobile Hamburger Button -->
+            <button class="hamburger" onclick="document.getElementById('navLinks').classList.toggle('mobile-open')">
+                <i class="fas fa-bars"></i>
+            </button>
         </nav>
     </header>
 
     <main>
+        <!-- Hero Section -->
         <section class="hero" aria-labelledby="hero-title">
             <div class="hero-slideshow" aria-hidden="true">
                 <?php foreach ($heroSlides as $slideIndex => $slideImage): ?>
@@ -359,78 +447,77 @@ if ($is_logged_in) {
             
             <div class="hero-inner">
                 <div>
-                    <span class="eyebrow"><i class="fas fa-seedling"></i> Official Scholarship Portal</span>
+                    <span class="eyebrow"><i class="fas fa-certificate text-green-300"></i> Official Scholarship Portal</span>
                     <h1 id="hero-title"><?= htmlspecialchars($hero_title) ?></h1>
                     <p class="hero-copy"><?= htmlspecialchars($hero_body) ?></p>
                     <div class="hero-actions">
-                        <a class="btn btn-primary" href="#grants"><i class="fas fa-table-columns"></i> Browse Grants</a>
+                        <a class="btn btn-primary btn-apply-pulse" href="#grants"><i class="fas fa-magnifying-glass"></i> Browse Grants</a>
                         <?php if (!$is_logged_in): ?>
                             <a class="btn btn-ghost" href="student_login.php"><i class="fas fa-user-plus"></i> Create Account</a>
                         <?php endif; ?>
+                    </div>
+                    
+                    <div class="mt-8 flex flex-wrap items-center gap-4 sm:gap-6 text-xs font-bold text-white/90 bg-black/20 w-fit px-5 py-3 rounded-xl backdrop-blur-md border border-white/10">
+                        <span class="flex items-center gap-2"><i class="fas fa-shield-check text-green-400"></i> Secure & Official</span>
+                        <span class="hidden sm:block w-1 h-1 bg-white/30 rounded-full"></span>
+                        <span class="flex items-center gap-2"><i class="fas fa-bolt text-yellow-400"></i> 1-Click Apply</span>
+                        <span class="hidden sm:block w-1 h-1 bg-white/30 rounded-full"></span>
+                        <span class="flex items-center gap-2"><i class="fas fa-folder-open text-blue-300"></i> Cloud Vault</span>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section class="pull-top" aria-label="Scholarship quick facts">
-            <div class="quick-guide-shell">
-                <div class="quick-guide-grid">
-                    <article class="quick-guide-card reveal">
-                        <span class="quick-guide-icon"><i class="fas fa-graduation-cap"></i></span>
-                        <div>
-                            <h3><?= $active_scholarship_count ?></h3>
-                            <p>Active Scholarships</p>
-                        </div>
-                    </article>
-                    <article class="quick-guide-card reveal">
-                        <span class="quick-guide-icon"><i class="fas fa-peso-sign"></i></span>
-                        <div>
-                            <h3>₱<?= number_format($total_active_award_value) ?></h3>
-                            <p>Total Grant Value</p>
-                        </div>
-                    </article>
-                    <article class="quick-guide-card reveal">
-                        <span class="quick-guide-icon"><i class="fas fa-hourglass-half"></i></span>
-                        <div>
-                            <h3><?= htmlspecialchars($nearest_deadline_label) ?></h3>
-                            <p>Nearest Deadline</p>
-                        </div>
-                    </article>
-                </div>
+        <!-- SMART MATCH ELIGIBILITY FINDER -->
+        <div class="search-command-center reveal">
+            <div class="flex items-center justify-between w-full border-b border-slate-100 pb-3">
+                <h3 class="font-black text-slate-900 text-lg flex items-center gap-2"><i class="fas fa-bullseye text-green-600"></i> Smart Match Finder</h3>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">Find your eligibility instantly</span>
             </div>
-        </section>
+            <div class="search-grid w-full">
+                <div class="search-wrap">
+                    <i class="fas fa-magnifying-glass"></i>
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search grant name..." oninput="changeSearchFilter()">
+                </div>
+                <div class="search-wrap">
+                    <i class="fas fa-star" style="color: var(--gold);"></i>
+                    <input type="number" step="0.01" min="1.00" max="5.00" id="matchGwa" class="search-input" placeholder="Your GWA (e.g. 1.50)" onblur="validateGwa(this)" oninput="runSmartMatch()">
+                </div>
+                <select id="matchProgram" onchange="runSmartMatch()">
+                    <option value="all">🎓 All Target Programs</option>
+                    <?php foreach ($distinct_programs as $prog): ?>
+                        <option value="<?= htmlspecialchars($prog) ?>"><?= htmlspecialchars($prog) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <select id="matchYear" onchange="runSmartMatch()">
+                    <option value="all">📅 All Year Levels</option>
+                    <option value="1st Year">1st Year</option>
+                    <option value="2nd Year">2nd Year</option>
+                    <option value="3rd Year">3rd Year</option>
+                    <option value="4th Year">4th Year</option>
+                </select>
+            </div>
+        </div>
 
-        <section id="grants">
+        <!-- Grants Section -->
+        <section id="grants" style="padding-top: 0;">
             <div class="section-inner">
-                <div class="section-head">
+                <div class="section-head reveal">
                     <div class="section-head-top">
                         <div>
-                            <span class="section-kicker">Browse All Grants</span>
+                            <span class="section-kicker">Find your match</span>
                             <h2><?= htmlspecialchars($grants_title) ?></h2>
                             <p><?= htmlspecialchars($grants_body) ?></p>
                         </div>
-                        <div class="filter-controls">
-                            <div class="search-wrap">
-                                <i class="fas fa-magnifying-glass"></i>
-                                <input type="text" id="searchInput" class="search-input" placeholder="Search scholarship name..." oninput="changeSearchFilter()">
-                            </div>
-                            <select id="programFilter" onchange="changeProgramFilter()">
-                                <option value="all">All Programs</option>
-                                <?php foreach ($distinct_programs as $prog): ?>
-                                    <option value="<?= htmlspecialchars($prog) ?>"><?= htmlspecialchars($prog) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <select id="statusFilter" onchange="changeStatusFilter()">
-                                <option value="all">All Statuses</option>
-                                <?php foreach ($distinct_statuses as $st): $stMeta = scholarship_status_meta($st); ?>
-                                    <option value="<?= htmlspecialchars($st) ?>"><?= $stMeta['label'] ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <select id="itemsPerPage" onchange="changeItemsPerPage()">
-                                <option value="3">Show 3</option>
-                                <option value="6" selected>Show 6</option>
-                                <option value="9">Show 9</option>
-                                <option value="999">Show All</option>
+                        
+                        <!-- ✨ RESTORED: Items Per Page Dropdown -->
+                        <div class="flex items-center gap-3 shrink-0">
+                            <span class="text-xs font-black text-slate-400 uppercase tracking-widest hidden sm:block">Show:</span>
+                            <select id="itemsPerPage" onchange="changeItemsPerPage()" class="bg-white border border-slate-200 text-slate-700 text-sm font-bold py-2.5 px-4 rounded-xl outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 cursor-pointer shadow-sm transition-all">
+                                <option value="3">3 Grants</option>
+                                <option value="6" selected>6 Grants</option>
+                                <option value="9">9 Grants</option>
+                                <option value="999">All Grants</option>
                             </select>
                         </div>
                     </div>
@@ -447,11 +534,23 @@ if ($is_logged_in) {
                         <?php foreach ($all_scholarships as $sch): ?>
                             <?php
                                 $statusValue = $sch['Status'] ?? 'Active';
-                                $statusMeta = scholarship_status_meta($statusValue);
+                                $statusMeta = scholarship_status_meta($statusValue, $sch['Deadline'] ?? null);
                                 $isActiveScholarship = strtolower($statusValue) === 'active';
                             ?>
-                            <article class="program-card reveal" data-status="<?= htmlspecialchars($statusValue) ?>" data-program="<?= htmlspecialchars($sch['ProgramName'] ?? 'Open to All Courses') ?>" data-name="<?= htmlspecialchars(strtolower($sch['Name'])) ?>">
+                            <article class="program-card reveal" 
+                                     data-status="<?= htmlspecialchars($statusValue) ?>" 
+                                     data-program="<?= htmlspecialchars($sch['ProgramName'] ?? 'Open to All Courses') ?>" 
+                                     data-name="<?= htmlspecialchars(strtolower($sch['Name'])) ?>"
+                                     data-year="<?= htmlspecialchars($sch['YearLevel'] ?? '') ?>"
+                                     data-gwa="<?= htmlspecialchars($sch['MinimumGWA'] ?? '') ?>">
+                                
                                 <span class="status-pill <?= $statusMeta['class'] ?>"><?= $statusMeta['label'] ?></span>
+                                
+                                <!-- ✨ ADDED DYNAMIC PROGRAM IMAGES WITH FALLBACK HERE -->
+                                <div class="program-media">
+                                    <img src="<?= getProgramImage($sch['ProgramName']) ?>" onerror="this.style.display='none'" alt="<?= htmlspecialchars($sch['ProgramName'] ?? 'Program') ?>">
+                                </div>
+                                
                                 <div class="program-body">
                                     <span class="program-badge"><?= htmlspecialchars($sch['ProgramName'] ?? 'Open to All Courses') ?></span>
                                     <h3><?= htmlspecialchars($sch['Name']) ?></h3>
@@ -459,7 +558,7 @@ if ($is_logged_in) {
                                     
                                     <div class="mt-auto">
                                         <div class="fact-row">
-                                            <span>Min GWA</span>
+                                            <span>Min GWA Requirement</span>
                                             <strong><?= htmlspecialchars($sch['MinimumGWA']) ?></strong>
                                         </div>
                                         <div class="fact-row">
@@ -467,12 +566,12 @@ if ($is_logged_in) {
                                             <strong class="highlight">₱<?= number_format($sch['AwardAmount']) ?></strong>
                                         </div>
                                         <div class="fact-row">
-                                            <span>Slots Available</span>
-                                            <strong><?= $sch['NumberOfSlots'] ?? 'Unlimited' ?></strong>
+                                            <span>Target Year</span>
+                                            <strong><?= !empty($sch['YearLevel']) ? $sch['YearLevel'] : 'All Levels' ?></strong>
                                         </div>
-                                        <button type="button" class="program-link" onclick='openDetailsModal(<?= $sch['ScholarshipID'] ?>)'>
-                                            View Details <i class="fas fa-arrow-right"></i>
-                                        </button>
+                                        <a href="scholarship_details.php?id=<?= $sch['ScholarshipID'] ?>" class="program-link <?= $isActiveScholarship ? 'hover:bg-green-700 hover:border-green-700' : 'text-slate-500 hover:bg-slate-200 border-slate-200' ?>">
+                                            <?= $isActiveScholarship ? 'View & Apply <i class="fas fa-arrow-right"></i>' : 'View Details <i class="fas fa-eye"></i>' ?> 
+                                        </a>
                                     </div>
                                 </div>
                             </article>
@@ -483,8 +582,9 @@ if ($is_logged_in) {
                 <?php if (!empty($all_scholarships)): ?>
                     <div class="empty-state" id="noFilterResults" style="display:none;">
                         <i class="fas fa-filter-circle-xmark"></i>
-                        <h3 class="text-xl font-black text-slate-900 mb-2">No scholarships match this filter</h3>
-                        <p class="text-slate-500 font-medium">Try a different status from the dropdown above.</p>
+                        <h3 class="text-xl font-black text-slate-900 mb-2">No scholarships match your criteria</h3>
+                        <p class="text-slate-500 font-medium">Try clearing your search or adjusting your GWA and Category.</p>
+                        <button onclick="clearSmartMatch()" class="mt-4 px-6 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors">Clear Filters</button>
                     </div>
                     <div class="pagination-controls" id="paginationControls"></div>
                     <div id="pageInfo" class="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mt-4"></div>
@@ -493,27 +593,28 @@ if ($is_logged_in) {
             </div>
         </section>
 
-        <section class="how-it-works" aria-labelledby="how-it-works-title">
+        <!-- HOW IT WORKS -->
+        <section id="how-it-works" class="how-it-works" aria-labelledby="how-it-works-title">
             <div class="section-inner">
-                <div class="section-head reveal">
+                <div class="section-head reveal text-center mx-auto" style="max-width: 600px;">
                     <span class="section-kicker">Getting Started</span>
                     <h2 id="how-it-works-title">How ScholarLink Works</h2>
-                    <p>From account creation to a submitted application — here's the whole journey in three simple steps.</p>
+                    <p>From account creation to a submitted application — experience a frictionless journey in three simple steps.</p>
                 </div>
                 <div class="steps-track">
                     <div class="step-card reveal">
                         <span class="step-number">1</span>
                         <span class="step-badge"><i class="fas fa-user-plus"></i> Sign Up</span>
                         <h3>Create an Account</h3>
-                        <p>Register with your student details in minutes and get instant access to every open grant.</p>
+                        <p>Register with your student details in minutes and get instant access to your personalized dashboard.</p>
                     </div>
-                    <div class="step-card reveal">
+                    <div class="step-card reveal" style="transition-delay: 100ms;">
                         <span class="step-number">2</span>
                         <span class="step-badge"><i class="fas fa-lock"></i> Vault</span>
-                        <h3>Build your Document Vault 🔒</h3>
-                        <p>Upload your requirements once — COR, grades, IDs — and reuse them for every scholarship you apply to.</p>
+                        <h3>Build your Document Vault</h3>
+                        <p>Upload your requirements once — COR, grades, IDs — and securely reuse them for every scholarship.</p>
                     </div>
-                    <div class="step-card reveal">
+                    <div class="step-card reveal" style="transition-delay: 200ms;">
                         <span class="step-number">3</span>
                         <span class="step-badge"><i class="fas fa-bolt"></i> Apply</span>
                         <h3>Apply with 1-Click</h3>
@@ -523,7 +624,54 @@ if ($is_logged_in) {
             </div>
         </section>
 
-        <section aria-labelledby="faq-title">
+        <!-- SUCCESS STORIES / TESTIMONIALS -->
+        <section id="testimonials" class="testimonials">
+            <div class="section-inner">
+                <div class="section-head reveal text-center mx-auto" style="max-width: 600px;">
+                    <span class="section-kicker">Success Stories</span>
+                    <h2>Hear from our Scholars</h2>
+                    <p>Join hundreds of TAU students who have successfully secured their education through ScholarLink.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
+                    <div class="testimonial-card reveal">
+                        <div class="text-yellow-400 text-xl mb-4">★★★★★</div>
+                        <p class="text-slate-700 font-medium italic mb-6">"ScholarLink helped me focus on my thesis without worrying about my tuition. The 1-click apply feature saved me so much time!"</p>
+                        <div class="flex items-center gap-4 border-t border-slate-200 pt-4">
+                            <div class="w-10 h-10 bg-green-100 text-green-700 rounded-full flex items-center justify-center font-black">JC</div>
+                            <div>
+                                <h4 class="font-black text-slate-900 text-sm">Juan Dela Cruz</h4>
+                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">BSIT '26 • Academic Scholar</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="testimonial-card reveal" style="transition-delay: 100ms;">
+                        <div class="text-yellow-400 text-xl mb-4">★★★★★</div>
+                        <p class="text-slate-700 font-medium italic mb-6">"The Document Vault is a game changer. I uploaded my COR and grades once, and I applied to 3 grants effortlessly."</p>
+                        <div class="flex items-center gap-4 border-t border-slate-200 pt-4">
+                            <div class="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-black">MR</div>
+                            <div>
+                                <h4 class="font-black text-slate-900 text-sm">Maria Rosario</h4>
+                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">BSAgri '25 • CHED Grantee</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="testimonial-card reveal" style="transition-delay: 200ms;">
+                        <div class="text-yellow-400 text-xl mb-4">★★★★★</div>
+                        <p class="text-slate-700 font-medium italic mb-6">"I love the real-time tracking. I knew exactly when my documents were verified and when I was shortlisted by the OSSD!"</p>
+                        <div class="flex items-center gap-4 border-t border-slate-200 pt-4">
+                            <div class="w-10 h-10 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center font-black">AK</div>
+                            <div>
+                                <h4 class="font-black text-slate-900 text-sm">Angela D.</h4>
+                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">BSEd '24 • Private Grantee</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ SECTION -->
+        <section id="faq" aria-labelledby="faq-title" style="background: var(--wash);">
             <div class="section-inner">
                 <div class="section-head reveal">
                     <span class="section-kicker">Need Help?</span>
@@ -547,7 +695,7 @@ if ($is_logged_in) {
                             <i class="fas fa-chevron-down"></i>
                         </button>
                         <div class="faq-answer">
-                            <div class="faq-answer-inner">This depends on the specific grant's guidelines. Some scholarships can be combined with others, while some require exclusivity. Check the "Program Description" in each grant's details modal, or ask the OSSD office to confirm.</div>
+                            <div class="faq-answer-inner">This depends on the specific grant's guidelines. ScholarLink automatically checks for strict dual-scholarship policies to prevent hoarding. Check the "Program Description" in each grant's details page.</div>
                         </div>
                     </div>
                     <div class="faq-item">
@@ -565,64 +713,43 @@ if ($is_logged_in) {
                             <i class="fas fa-chevron-down"></i>
                         </button>
                         <div class="faq-answer">
-                            <div class="faq-answer-inner">You'll be able to track your application status directly from your student dashboard, and updates are reflected as soon as the reviewing admin makes a decision.</div>
+                            <div class="faq-answer-inner">You will receive an official email notification, and you can also track your live application status directly from your student dashboard. Updates are reflected in real-time.</div>
                         </div>
                     </div>
                 </div>
 
                 <div class="faq-visual reveal">
-                    <svg viewBox="0 0 340 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Illustration of a student with frequently asked questions">
-                        <circle cx="170" cy="170" r="160" fill="#f3faf5"/>
-                        <circle cx="170" cy="170" r="118" fill="#eaf7ee"/>
-                        <rect x="70" y="205" width="200" height="14" rx="7" fill="#d7e8dd"/>
-                        <g>
-                            <rect x="110" y="90" width="120" height="90" rx="10" fill="#ffffff" stroke="#d7e8dd" stroke-width="2"/>
-                            <rect x="128" y="112" width="84" height="10" rx="5" fill="#b7e4ca"/>
-                            <rect x="128" y="132" width="60" height="10" rx="5" fill="#eaf7ee"/>
-                            <rect x="128" y="152" width="72" height="10" rx="5" fill="#eaf7ee"/>
-                        </g>
-                        <g>
-                            <ellipse cx="170" cy="245" rx="46" ry="10" fill="#d7e8dd" opacity="0.6"/>
-                            <rect x="148" y="185" width="44" height="66" rx="16" fill="#198754"/>
-                            <circle cx="170" cy="165" r="26" fill="#f6c453"/>
-                            <path d="M148 200 q22 -14 44 0 v18 q-22 -10 -44 0 z" fill="#0f5132"/>
-                        </g>
-                        <g>
-                            <circle cx="255" cy="95" r="26" fill="#198754"/>
-                            <text x="255" y="104" font-family="Plus Jakarta Sans, Arial, sans-serif" font-size="26" font-weight="900" fill="#ffffff" text-anchor="middle">?</text>
-                        </g>
-                        <g>
-                            <circle cx="70" cy="130" r="18" fill="#b7791f"/>
-                            <text x="70" y="137" font-family="Plus Jakarta Sans, Arial, sans-serif" font-size="18" font-weight="900" fill="#ffffff" text-anchor="middle">?</text>
-                        </g>
-                        <g>
-                            <circle cx="80" cy="235" r="14" fill="#2563eb"/>
-                            <text x="80" y="240" font-family="Plus Jakarta Sans, Arial, sans-serif" font-size="14" font-weight="900" fill="#ffffff" text-anchor="middle">?</text>
-                        </g>
-                    </svg>
+                    <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mb-6 shadow-inner">
+                        <i class="fas fa-headset"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-900 mb-2">Still have questions?</h3>
+                    <p class="text-slate-500 font-medium text-sm mb-6">Our OSSD team is ready to assist you with your scholarship journey.</p>
+                    <a href="https://www.facebook.com/TAUOSSD" target="_blank" class="btn btn-primary w-full">Message OSSD Support</a>
                 </div>
                 </div>
             </div>
         </section>
 
-        <section aria-label="Call to action">
-            <div class="section-inner">
+        <!-- CTA BANNER -->
+        <section aria-label="Call to action" style="padding-bottom: 0;">
+            <div class="section-inner" style="transform: translateY(40px); position: relative; z-index: 10;">
                 <div class="cta-banner reveal">
                     <div>
                         <h2>Ready to secure your future?</h2>
-                        <p>Join ScholarLink today and get every TAU scholarship in one place.</p>
+                        <p>Join ScholarLink today and manage all your TAU scholarship applications in one unified portal.</p>
                     </div>
-                    <a class="btn btn-primary" href="<?= $is_logged_in ? $role_redirect : 'student_login.php' ?>">
-                        <i class="fas fa-user-plus"></i> Create Account
+                    <a class="btn btn-primary btn-apply-pulse" href="<?= $is_logged_in ? $role_redirect : 'student_login.php' ?>" style="color: var(--green) !important;">
+                        <?= $is_logged_in ? 'Go to Dashboard' : '<i class="fas fa-user-plus"></i> Create Free Account' ?>
                     </a>
                 </div>
             </div>
         </section>
     </main>
 
-    <footer class="site-footer">
+    <!-- Footer -->
+    <footer class="site-footer" style="padding-top: 80px;">
         <div class="footer-inner">
-            <img src="assets/img/tau_logo.png" alt="TAU Logo" class="footer-logo">
+            <img src="assets/img/tau_logo.png" alt="TAU Logo">
             <div>
                 <p>Tarlac Agricultural University &copy; <?= date('Y') ?></p>
                 <p class="small-text mt-1">ScholarLink Management System</p>
@@ -638,51 +765,27 @@ if ($is_logged_in) {
         </div>
     </footer>
 
-    <div id="detailsModal" class="fixed inset-0 z-[1000] hidden flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 opacity-0" onclick="closeDetailsModal(event)">
-        <div id="detailsModalContent" class="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden relative transform transition-transform duration-300 scale-95 flex flex-col max-h-[90vh]" onclick="event.stopPropagation()">
-            <div class="px-6 lg:px-8 py-6 border-b border-slate-100 flex justify-between items-start bg-slate-50 shrink-0">
-                <div class="pr-4">
-                    <span id="modalBadge" class="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-200 mb-3">Program</span>
-                    <h3 id="modalTitle" class="font-black text-slate-900 text-2xl lg:text-3xl tracking-tight leading-tight" style="font-family: 'Plus Jakarta Sans', sans-serif;">Scholarship Name</h3>
-                </div>
-                <button type="button" onclick="closeDetailsModal()" class="w-8 h-8 flex items-center justify-center bg-slate-200 text-slate-600 rounded-full hover:bg-red-500 hover:text-white transition-colors font-bold shrink-0">&times;</button>
-            </div>
-            
-            <div class="p-6 lg:p-8 overflow-y-auto" style="font-family: 'Plus Jakarta Sans', sans-serif;">
-                <div class="grid grid-cols-3 gap-2 sm:gap-4 py-4 border border-slate-100 mb-6 bg-slate-50/50 rounded-2xl px-2 sm:px-4">
-                    <div class="text-center">
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Min GWA</span>
-                        <span id="modalGwa" class="text-lg font-black text-green-700">2.00</span>
-                    </div>
-                    <div class="text-center border-x border-slate-200">
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Grant Amount</span>
-                        <span id="modalAmount" class="text-lg font-black text-yellow-600">₱0</span>
-                    </div>
-                    <div class="text-center">
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Slots</span>
-                        <span id="modalSlots" class="text-lg font-black text-slate-700">Unlimited</span>
-                    </div>
-                </div>
-
-                <div>
-                    <h4 class="text-sm font-black text-slate-900 uppercase tracking-widest mb-3">Program Description</h4>
-                    <p id="modalDesc" class="text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">Description goes here...</p>
-                </div>
-            </div>
-
-            <div class="p-6 lg:p-8 border-t border-slate-100 bg-slate-50 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-4" style="font-family: 'Plus Jakarta Sans', sans-serif;">
-                <div>
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Application Deadline</span>
-                    <span id="modalDeadline" class="text-sm font-black text-red-600">Dec 31, 2024</span>
-                </div>
-                <a href="<?= $is_logged_in ? $role_redirect : 'student_login.php' ?>" id="modalApplyBtn" class="w-full sm:w-auto text-center bg-green-700 text-white hover:bg-yellow-400 hover:text-green-950 px-8 py-3.5 rounded-xl text-sm font-black transition-all shadow-md active:scale-95 uppercase tracking-widest">
-                    Apply for this Grant
-                </a>
-            </div>
-        </div>
-    </div>
-
+    <!-- SCRIPTS -->
     <script>
+        // ✨ PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => console.log('PWA ServiceWorker registered successfully!'))
+                    .catch(error => console.log('ServiceWorker registration failed:', error));
+            });
+        }
+
+        // Keyboard Accessibility for Slider
+        document.addEventListener('keydown', function(e) {
+            const activeTag = document.activeElement.tagName.toLowerCase();
+            if (activeTag !== 'input' && activeTag !== 'textarea') {
+                if (e.key === 'ArrowLeft') document.querySelector('[data-hero-slide="prev"]')?.click();
+                if (e.key === 'ArrowRight') document.querySelector('[data-hero-slide="next"]')?.click();
+            }
+        });
+
+        // Hero Slider
         (function () {
             const slides = Array.from(document.querySelectorAll('.hero-slide'));
             if (slides.length <= 1) return;
@@ -698,33 +801,21 @@ if ($is_logged_in) {
 
             function startTimer() {
                 window.clearInterval(timerId);
-                timerId = window.setInterval(function () {
-                    showSlide(activeIndex + 1);
-                }, 4800);
+                timerId = window.setInterval(function () { showSlide(activeIndex + 1); }, 4800);
             }
 
-            document.querySelector('[data-hero-slide="prev"]')?.addEventListener('click', function () {
-                showSlide(activeIndex - 1);
-                startTimer();
-            });
-
-            document.querySelector('[data-hero-slide="next"]')?.addEventListener('click', function () {
-                showSlide(activeIndex + 1);
-                startTimer();
-            });
+            document.querySelector('[data-hero-slide="prev"]')?.addEventListener('click', function () { showSlide(activeIndex - 1); startTimer(); });
+            document.querySelector('[data-hero-slide="next"]')?.addEventListener('click', function () { showSlide(activeIndex + 1); startTimer(); });
 
             startTimer();
         })();
-    </script>
 
-    <script>
-        // FAQ Accordion (always available, regardless of scholarship data)
+        // FAQ Accordion
         function toggleFaq(button) {
             const item = button.closest('.faq-item');
             const answer = item.querySelector('.faq-answer');
             const wasOpen = item.classList.contains('is-open');
 
-            // Close any other open FAQ items
             document.querySelectorAll('.faq-item.is-open').forEach(openItem => {
                 if (openItem !== item) {
                     openItem.classList.remove('is-open');
@@ -741,7 +832,7 @@ if ($is_logged_in) {
             }
         }
 
-        // Scroll Reveal Animations (always available, regardless of scholarship data)
+        // Scroll Reveal Animations
         document.addEventListener('DOMContentLoaded', function () {
             const revealTargets = document.querySelectorAll('.reveal');
             if ('IntersectionObserver' in window && revealTargets.length) {
@@ -756,7 +847,6 @@ if ($is_logged_in) {
 
                 revealTargets.forEach(target => revealObserver.observe(target));
             } else {
-                // Fallback: just show everything if IntersectionObserver isn't supported
                 revealTargets.forEach(target => target.classList.add('is-visible'));
             }
         });
@@ -764,75 +854,77 @@ if ($is_logged_in) {
 
     <?php if (!empty($all_scholarships)): ?>
     <script>
-        // Pass data from PHP to JS
-        const scholarshipDataMap = <?= json_encode($jsScholarshipMap) ?>;
-
-        function openDetailsModal(id) {
-            const data = scholarshipDataMap[id];
-            if(!data) return;
-
-            document.getElementById('modalTitle').innerText = data.Name;
-            document.getElementById('modalBadge').innerText = data.ProgramName || 'Open to All Courses';
-            document.getElementById('modalGwa').innerText = data.MinimumGWA || '2.00';
-            document.getElementById('modalAmount').innerText = '₱' + Number(data.AwardAmount).toLocaleString();
-            document.getElementById('modalSlots').innerText = data.NumberOfSlots ? data.NumberOfSlots : 'Unlimited';
-            document.getElementById('modalDesc').innerText = data.Description;
-            
-            // Format date
-            const d = new Date(data.Deadline);
-            const dateString = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            document.getElementById('modalDeadline').innerText = dateString;
-
-            // Handle active/inactive state for Apply button
-            const applyBtn = document.getElementById('modalApplyBtn');
-            if(data.Status && data.Status.toLowerCase() !== 'active') {
-                applyBtn.style.display = 'none';
-                document.getElementById('modalDeadline').innerText = 'Closed/Inactive';
-                document.getElementById('modalDeadline').classList.replace('text-red-600', 'text-slate-500');
-            } else {
-                applyBtn.style.display = 'block';
-                document.getElementById('modalDeadline').classList.replace('text-slate-500', 'text-red-600');
+        // GWA Formatter and Validation
+        function validateGwa(input) {
+            let val = parseFloat(input.value);
+            if (isNaN(val)) {
+                input.value = '';
+                runSmartMatch();
+                return;
             }
-
-            const modal = document.getElementById('detailsModal');
-            const content = document.getElementById('detailsModalContent');
-            modal.classList.remove('hidden');
-            
-            // Trigger reflow for animation
-            void modal.offsetWidth;
-            modal.classList.remove('opacity-0');
-            content.classList.remove('scale-95');
-            document.body.style.overflow = 'hidden';
+            if (val < 1.00) val = 1.00;
+            if (val > 5.00) val = 5.00;
+            input.value = val.toFixed(2);
+            runSmartMatch();
         }
 
-        function closeDetailsModal(event) {
-            // If event is passed, check if we clicked outside the content box
-            if(event && event.target.id !== 'detailsModal' && event.target.tagName !== 'BUTTON') return;
-
-            const modal = document.getElementById('detailsModal');
-            const content = document.getElementById('detailsModalContent');
-            modal.classList.add('opacity-0');
-            content.classList.add('scale-95');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                document.body.style.overflow = 'auto';
-            }, 300);
-        }
-
-        // Pagination Logic
+        // ✨ RESTORED & FIXED: Pagination and Filter Logic
         let currentPage = 1;
-        let itemsPerPage = parseInt(document.getElementById('itemsPerPage').value) || 6;
-        let statusFilter = document.getElementById('statusFilter') ? document.getElementById('statusFilter').value : 'all';
-        let programFilter = document.getElementById('programFilter') ? document.getElementById('programFilter').value : 'all';
-        let searchFilter = '';
+        
+        // Kukunin niya na ngayon yung value mula sa dropdown imbes na static "6"
+        const itemsSelect = document.getElementById('itemsPerPage');
+        let itemsPerPage = itemsSelect ? parseInt(itemsSelect.value) : 6;
+        
         const allCards = Array.from(document.querySelectorAll('.program-card'));
 
+        // Function para palitan ang dami ng items na nakikita
+        function changeItemsPerPage() {
+            const select = document.getElementById('itemsPerPage');
+            if(select) {
+                itemsPerPage = parseInt(select.value) || 6;
+                currentPage = 1;
+                renderPagination();
+            }
+        }
+
+        function runSmartMatch() {
+            currentPage = 1;
+            renderPagination();
+        }
+
+        function clearSmartMatch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('matchGwa').value = '';
+            document.getElementById('matchProgram').value = 'all';
+            document.getElementById('matchYear').value = 'all';
+            runSmartMatch();
+        }
+
         function getFilteredCards() {
+            const searchInput = document.getElementById('searchInput') ? document.getElementById('searchInput').value.trim().toLowerCase() : '';
+            const matchGwa = document.getElementById('matchGwa') ? document.getElementById('matchGwa').value : '';
+            const matchProgram = document.getElementById('matchProgram') ? document.getElementById('matchProgram').value : 'all';
+            const matchYear = document.getElementById('matchYear') ? document.getElementById('matchYear').value : 'all';
+
             return allCards.filter(card => {
-                const matchesStatus = statusFilter === 'all' || card.dataset.status === statusFilter;
-                const matchesProgram = programFilter === 'all' || card.dataset.program === programFilter;
-                const matchesSearch = searchFilter === '' || card.dataset.name.includes(searchFilter);
-                return matchesStatus && matchesProgram && matchesSearch;
+                const cardName = card.dataset.name;
+                const cardProgram = card.dataset.program;
+                const cardYear = card.dataset.year;
+                const cardGwa = parseFloat(card.dataset.gwa) || 5.0;
+
+                const searchMatch = searchInput === '' || cardName.includes(searchInput);
+                const progMatch = matchProgram === 'all' || cardProgram === 'Open to All Courses' || cardProgram === '' || cardProgram === matchProgram;
+                const yearMatch = matchYear === 'all' || cardYear === '' || cardYear === matchYear;
+                
+                let gwaMatch = true;
+                if (matchGwa !== '') {
+                    const userGwa = parseFloat(matchGwa);
+                    if (!isNaN(userGwa) && !isNaN(cardGwa)) {
+                        gwaMatch = userGwa <= cardGwa;
+                    }
+                }
+
+                return searchMatch && progMatch && yearMatch && gwaMatch;
             });
         }
 
@@ -860,12 +952,14 @@ if ($is_logged_in) {
 
             const start = (currentPage - 1) * itemsPerPage;
             const end = start + itemsPerPage;
-            cards.slice(start, end).forEach(card => card.style.display = 'flex');
+            cards.slice(start, end).forEach(card => {
+                card.style.display = 'flex';
+                setTimeout(() => card.classList.add('is-visible'), 50);
+            });
 
             if (pageInfo) pageInfo.innerText = `Showing ${start + 1} to ${Math.min(end, totalItems)} of ${totalItems} Grants`;
 
             let btnHtml = `<button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} class="page-btn">&larr;</button>`;
-
             let startPage = Math.max(1, currentPage - 1);
             let endPage = Math.min(totalPages, currentPage + 1);
 
@@ -885,7 +979,6 @@ if ($is_logged_in) {
                 if (endPage < totalPages - 1) btnHtml += `<span class="px-2 text-slate-400 font-bold">...</span>`;
                 btnHtml += `<button onclick="changePage(${totalPages})" class="page-btn">${totalPages}</button>`;
             }
-
             btnHtml += `<button onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} class="page-btn">&rarr;</button>`;
 
             if (paginationControls) paginationControls.innerHTML = btnHtml;
@@ -899,30 +992,10 @@ if ($is_logged_in) {
             document.getElementById('grants').scrollIntoView({ behavior: 'smooth' });
         }
 
-        function changeItemsPerPage() {
-            itemsPerPage = parseInt(document.getElementById('itemsPerPage').value);
-            currentPage = 1;
-            renderPagination();
-        }
-
-        function changeStatusFilter() {
-            statusFilter = document.getElementById('statusFilter').value;
-            currentPage = 1;
-            renderPagination();
-        }
-
-        function changeProgramFilter() {
-            programFilter = document.getElementById('programFilter').value;
-            currentPage = 1;
-            renderPagination();
-        }
-
-        // Debounced search-as-you-type filter
         let searchDebounce = null;
         function changeSearchFilter() {
             clearTimeout(searchDebounce);
             searchDebounce = setTimeout(() => {
-                searchFilter = document.getElementById('searchInput').value.trim().toLowerCase();
                 currentPage = 1;
                 renderPagination();
             }, 200);
@@ -931,5 +1004,8 @@ if ($is_logged_in) {
         document.addEventListener('DOMContentLoaded', renderPagination);
     </script>
     <?php endif; ?>
+
+    <!-- ✨ CHATBOT INTEGRATION -->
+    <?php include 'includes/chatbot.php'; ?>
 </body>
 </html>
