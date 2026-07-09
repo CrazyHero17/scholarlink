@@ -1,129 +1,66 @@
 <?php
 session_start();
-include '../includes/db_connect.php';
+require '../includes/db_connect.php';
+require '../includes/email_config.php';
 
-// 🔒 SECURITY GATEKEEPER
-if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'Super_Admin') {
-    die("Unauthorized Access. Intrusion Logged.");
-}
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $email = filter_var(trim($_POST['email']), FILTER_SANITIZE_EMAIL);
 
-$action = $_GET['action'] ?? $_POST['action'] ?? '';
-$admin_id = $_SESSION['user_id'] ?? 1;
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $_SESSION['error'] = "Please enter a valid email address.";
+        header("Location: ../student_login.php");
+        exit();
+    }
 
-// ========================================================
-// ✨ 1. EXPORT: PURE PHP SQL DUMPER
-// ========================================================
-if ($action === 'export') {
     try {
-        $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-        
-        $sqlScript = "-- ScholarLink Database Backup\n";
-        $sqlScript .= "-- Generated: " . date('Y-m-d H:i:s') . "\n";
-        $sqlScript .= "-- Server: " . $_SERVER['SERVER_NAME'] . "\n\n";
-        $sqlScript .= "SET FOREIGN_KEY_CHECKS = 0;\n\n";
+        // 1. Hanapin kung nag-e-exist ang email sa database
+        $stmt = $pdo->prepare("SELECT UserID, FirstName FROM Users WHERE Email = :email");
+        $stmt->execute(['email' => $email]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        foreach ($tables as $table) {
-            // Get Table Creation Schema
-            $createStmt = $pdo->query("SHOW CREATE TABLE `$table`")->fetch(PDO::FETCH_NUM);
-            $sqlScript .= "DROP TABLE IF EXISTS `$table`;\n";
-            $sqlScript .= $createStmt[1] . ";\n\n";
+        if ($user) {
+            // ✨ FIX 1: Ginawang 16 bytes (32 characters) na lang para iwas-putol sa database
+            $token = bin2hex(random_bytes(16)); 
 
-            // Get Table Data
-            $rows = $pdo->query("SELECT * FROM `$table`")->fetchAll(PDO::FETCH_ASSOC);
-            foreach ($rows as $row) {
-                $columns = array_keys($row);
-                $values = array_values($row);
-                
-                // Escape values securely
-                $escaped_values = array_map(function($val) use ($pdo) {
-                    return $val === null ? 'NULL' : $pdo->quote($val);
-                }, $values);
+            // ✨ FIX 2: Ginamit ang MySQL native function na DATE_ADD(NOW()) para iwas Timezone Mismatch
+            $update = $pdo->prepare("UPDATE Users SET ResetToken = :token, ResetTokenExpire = DATE_ADD(NOW(), INTERVAL 1 HOUR) WHERE Email = :email");
+            $update->execute([
+                'token' => $token, 
+                'email' => $email
+            ]);
 
-                $sqlScript .= "INSERT INTO `$table` (`" . implode("`, `", $columns) . "`) VALUES (" . implode(", ", $escaped_values) . ");\n";
+            // 4. I-generate ang dynamic Link kung saan sila magpapalit ng password
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+            $domainName = $_SERVER['HTTP_HOST'];
+            
+            // Kukunin ang base folder path (e.g., /scholarlink)
+            $project_folder = dirname($_SERVER['PHP_SELF'], 2);
+            $reset_link = $protocol . $domainName . $project_folder . "/reset_password.php?token=" . $token;
+
+            // 5. I-send ang email!
+            if (sendPasswordResetEmail($email, $user['FirstName'], $reset_link)) {
+                // Log the request
+                $log_stmt = $pdo->prepare("INSERT INTO audit_log (UserID, ActionPerformed, ActionDate, Description, IPAddress) VALUES (?, 'Password Reset Requested', NOW(), 'User requested a password reset link.', ?)");
+                $log_stmt->execute([$user['UserID'], $_SERVER['REMOTE_ADDR']]);
+
+                $_SESSION['success'] = "If the email is registered, a password reset link has been sent.";
+            } else {
+                $_SESSION['error'] = "System Error: Failed to send the reset email. Please try again later.";
             }
-            $sqlScript .= "\n";
+        } else {
+            // SECURITY BEST PRACTICE: Wag ipaalam sa hacker kung registered o hindi ang email
+            $_SESSION['success'] = "If the email is registered, a password reset link has been sent.";
         }
-        $sqlScript .= "SET FOREIGN_KEY_CHECKS = 1;\n";
-
-        // Log the export action
-        $log = $pdo->prepare("INSERT INTO audit_log (UserID, ActionPerformed, ActionDate, Description, IPAddress) VALUES (?, 'System Backup', NOW(), 'Super Admin exported a full database backup.', ?)");
-        $log->execute([$admin_id, $_SERVER['REMOTE_ADDR']]);
-
-        // Force download the file
-        $backup_file_name = 'ScholarLink_Backup_' . date('Y-m-d_H-i') . '.sql';
-        header('Content-Type: application/sql');
-        header('Content-Disposition: attachment; filename="' . $backup_file_name . '"');
-        echo $sqlScript;
-        exit;
 
     } catch (PDOException $e) {
-        $_SESSION['error'] = "Export Failed: " . $e->getMessage();
-        header("Location: ../super_admin/database.php");
-        exit;
+        error_log("Database Error in Forgot Password: " . $e->getMessage());
+        $_SESSION['error'] = "An error occurred while processing your request.";
     }
-}
 
-// ========================================================
-// ✨ 2. RESTORE: SQL IMPORTER
-// ========================================================
-elseif ($action === 'restore') {
-    if (isset($_FILES['backup_file']) && $_FILES['backup_file']['error'] == 0) {
-        $file_path = $_FILES['backup_file']['tmp_name'];
-        $sqlScript = file_get_contents($file_path);
-
-        try {
-            // Turn off foreign key constraints before dropping tables
-            $pdo->exec("SET FOREIGN_KEY_CHECKS = 0;");
-            
-            // Execute the entire dumped SQL file
-            $pdo->exec($sqlScript);
-            
-            // Turn constraints back on
-            $pdo->exec("SET FOREIGN_KEY_CHECKS = 1;");
-
-            // Log the restore action
-            $log = $pdo->prepare("INSERT INTO audit_log (UserID, ActionPerformed, ActionDate, Description, IPAddress) VALUES (?, 'System Restore', NOW(), 'Super Admin restored the database from a backup file.', ?)");
-            $log->execute([$admin_id, $_SERVER['REMOTE_ADDR']]);
-
-            $_SESSION['success'] = "System Successfully Restored from Backup!";
-        } catch (PDOException $e) {
-            $_SESSION['error'] = "Restore Failed. Ensure it is a valid ScholarLink .sql file. Error: " . $e->getMessage();
-        }
-    } else {
-        $_SESSION['error'] = "Please upload a valid .sql file.";
-    }
-    header("Location: ../super_admin/database.php");
-    exit;
-}
-
-// ========================================================
-// ✨ 3. WIPE & RESET: TRUNCATE TRANSACTIONS
-// ========================================================
-elseif ($action === 'reset') {
-    try {
-        $pdo->exec("SET FOREIGN_KEY_CHECKS = 0;");
-        
-        // Wipe transaction/moving data but KEEP Users, Scholarships, and Programs
-        $pdo->exec("TRUNCATE TABLE application");
-        $pdo->exec("TRUNCATE TABLE submitted_document");
-        $pdo->exec("TRUNCATE TABLE user_vault");
-        $pdo->exec("TRUNCATE TABLE audit_log");
-        
-        $pdo->exec("SET FOREIGN_KEY_CHECKS = 1;");
-
-        // Create a new log for the reset (since we just wiped the old logs)
-        $log = $pdo->prepare("INSERT INTO audit_log (UserID, ActionPerformed, ActionDate, Description, IPAddress) VALUES (?, 'System Reset', NOW(), 'Super Admin wiped all application and document data for a fresh semester.', ?)");
-        $log->execute([$admin_id, $_SERVER['REMOTE_ADDR']]);
-
-        $_SESSION['success'] = "System Reset Complete. All active applications wiped.";
-    } catch (PDOException $e) {
-        $_SESSION['error'] = "Reset Failed: " . $e->getMessage();
-    }
-    header("Location: ../super_admin/database.php");
-    exit;
-}
-else {
-    header("Location: ../super_admin/database.php");
-    exit;
+    header("Location: ../student_login.php");
+    exit();
+} else {
+    header("Location: ../student_login.php");
+    exit();
 }
 ?>

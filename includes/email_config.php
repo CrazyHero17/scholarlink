@@ -3,12 +3,15 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use PHPMailer\PHPMailer\SMTP;
 
-$base_dir = __DIR__ . '/vendor/phpmailer/phpmailer/src/';
+// Path sa PHPMailer
+$base_dir = __DIR__ . '/../vendor/phpmailer/phpmailer/src/';
 require $base_dir . 'Exception.php';
 require $base_dir . 'PHPMailer.php';
 require $base_dir . 'SMTP.php';
 
-// Your existing Scholarship Status Email function
+// ==========================================
+// 1. Scholarship Status Email
+// ==========================================
 function sendScholarshipEmail($to_email, $first_name, $scholarship_name, $status) {
     $mail = new PHPMailer(true);
     try {
@@ -19,6 +22,15 @@ function sendScholarshipEmail($to_email, $first_name, $scholarship_name, $status
         $mail->Password   = 'tkji npim asgw cmkp';   
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = 587;
+
+        // ✨ FIX FOR LOCALHOST: Bypass SSL Verification
+        $mail->SMTPOptions = array(
+            'ssl' => array(
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            )
+        );
 
         $mail->setFrom('cjcanaria63@gmail.com', 'TAU ScholarLink');
         $mail->addAddress($to_email, $first_name);
@@ -49,13 +61,13 @@ function sendScholarshipEmail($to_email, $first_name, $scholarship_name, $status
         $mail->send();
         return true;
     } catch (Exception $e) {
-        error_log("PHPMailer Error: {$mail->ErrorInfo}");
+        error_log("PHPMailer Error (Status): {$mail->ErrorInfo}");
         return false;
     }
 }
 
 // ==========================================
-//  Forgot Password Email Function
+// 2. Forgot Password Email Function
 // ==========================================
 function sendPasswordResetEmail($to_email, $first_name, $reset_link) {
     $mail = new PHPMailer(true);
@@ -67,6 +79,15 @@ function sendPasswordResetEmail($to_email, $first_name, $reset_link) {
         $mail->Password   = 'tkji npim asgw cmkp';   
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = 587;
+
+        // ✨ FIX FOR LOCALHOST: Bypass SSL Verification
+        $mail->SMTPOptions = array(
+            'ssl' => array(
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            )
+        );
 
         $mail->setFrom('cjcanaria63@gmail.com', 'TAU ScholarLink Security');
         $mail->addAddress($to_email, $first_name);
@@ -86,13 +107,13 @@ function sendPasswordResetEmail($to_email, $first_name, $reset_link) {
         $mail->send();
         return true;
     } catch (Exception $e) {
-        error_log("PHPMailer Error: {$mail->ErrorInfo}");
+        error_log("PHPMailer Error (Reset): {$mail->ErrorInfo}");
         return false;
     }
 }
 
 // ==========================================
-// NEW: AI Missing Requirements Email Function
+// 3. AI Missing Requirements Email Function
 // ==========================================
 function sendMissingRequirementsEmail($to_email, $first_name, $missing_list_html) {
     $mail = new PHPMailer(true);
@@ -104,6 +125,15 @@ function sendMissingRequirementsEmail($to_email, $first_name, $missing_list_html
         $mail->Password   = 'tkji npim asgw cmkp';   
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = 587;
+
+        // ✨ FIX FOR LOCALHOST: Bypass SSL Verification
+        $mail->SMTPOptions = array(
+            'ssl' => array(
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            )
+        );
 
         $mail->setFrom('cjcanaria63@gmail.com', 'TAU ScholarLink AI');
         $mail->addAddress($to_email, $first_name);
@@ -128,22 +158,33 @@ function sendMissingRequirementsEmail($to_email, $first_name, $missing_list_html
         $mail->send();
         return true;
     } catch (Exception $e) {
-        error_log("PHPMailer Error: {$mail->ErrorInfo}");
+        error_log("PHPMailer Error (AI): {$mail->ErrorInfo}");
         return false;
     }
 }
 
-// ✨ NEW: OTP Email Function for Registration
+// ==========================================
+// 4. OTP Email Function for Registration
+// ==========================================
 function sendRegistrationOTP($to_email, $first_name, $otp_code) {
-    $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+    $mail = new PHPMailer(true);
     try {
         $mail->isSMTP();
         $mail->Host       = 'smtp.gmail.com';
         $mail->SMTPAuth   = true;
         $mail->Username   = 'cjcanaria63@gmail.com'; 
         $mail->Password   = 'tkji npim asgw cmkp';   
-        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = 587;
+
+        // ✨ FIX FOR LOCALHOST: Bypass SSL Verification
+        $mail->SMTPOptions = array(
+            'ssl' => array(
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            )
+        );
 
         $mail->setFrom('cjcanaria63@gmail.com', 'ScholarLink Security');
         $mail->addAddress($to_email, $first_name);
@@ -162,8 +203,9 @@ function sendRegistrationOTP($to_email, $first_name, $otp_code) {
         ";
         $mail->send();
         return true;
-    } catch (Exception $e) { return false; }
+    } catch (Exception $e) { 
+        error_log("PHPMailer Error (OTP): {$mail->ErrorInfo}");
+        return false; 
+    }
 }
-
-
 ?>
