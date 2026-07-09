@@ -7,7 +7,7 @@ require_once '../includes/email_config.php';
 
 header('Content-Type: application/json');
 
-// ✨ NEW: CLEAR CHAT INTERCEPTOR
+// ✨ CLEAR CHAT INTERCEPTOR
 if (isset($_POST['action']) && $_POST['action'] === 'clear_chat') {
     unset($_SESSION['chat_history']);
     echo json_encode(['success' => true]);
@@ -17,8 +17,11 @@ if (isset($_POST['action']) && $_POST['action'] === 'clear_chat') {
 // ==========================================
 // 1. CONFIGURATION & TIME AWARENESS
 // ==========================================
-$api_key = "AIzaSyChhsFDiddz3X5OsuDjZrFQh3WbuhUQ0mY"; 
-$model = "gemini-flash-latest"; 
+require_once '../includes/api_config.php'; 
+$api_key = GEMINI_API_KEY;                
+
+$model = "gemini-3.5-flash"; 
+
 date_default_timezone_set('Asia/Manila');
 $current_date = date('Y-m-d'); 
 $display_date = date('l, F j, Y');
@@ -28,7 +31,6 @@ $user_role = $_SESSION['role'] ?? 'Guest';
 $first_name = $_SESSION['first_name'] ?? 'User';
 $user_message = $_POST['message'] ?? '';
 
-
 $raw_page = $_POST['current_page'] ?? 'Unknown Page';
 $current_page = ucfirst(str_replace('.php', '', $raw_page));
 
@@ -37,7 +39,7 @@ if (empty($user_message)) {
 }
 
 // ==========================================
-// 2. CONVERSATIONAL MEMORY & GEMINI VISION
+// 2. CONVERSATIONAL MEMORY & GEMINI 3.5 VISION
 // ==========================================
 if (!isset($_SESSION['chat_history'])) { $_SESSION['chat_history'] = []; }
 
@@ -66,6 +68,7 @@ if ($has_image) {
 $live_payload_history = $_SESSION['chat_history'];
 $live_payload_history[] = ["role" => "user", "parts" => $current_user_parts];
 
+// Save clean text to session memory
 $_SESSION['chat_history'][] = ["role" => "user", "parts" => [["text" => $text_for_memory]]];
 if (count($_SESSION['chat_history']) > 6) { $_SESSION['chat_history'] = array_slice($_SESSION['chat_history'], -6); }
 
@@ -269,7 +272,7 @@ KNOWLEDGE BASE: $db_context \n $nav_guide";
 
 $payload = [
     "contents" => $live_payload_history,
-    "system_instruction" => ["parts" => [["text" => $system_instruction]]]
+    "systemInstruction" => ["parts" => [["text" => $system_instruction]]] 
 ];
 
 $ch = curl_init("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent");
@@ -278,12 +281,23 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 
 $response = curl_exec($ch);
-$result = json_decode($response, true);
+
+if (curl_errno($ch)) {
+    $bot_reply = "System Network Error: " . curl_error($ch);
+} else {
+    $result = json_decode($response, true);
+    
+    if (isset($result['error'])) {
+        $bot_reply = "Google API Error: " . $result['error']['message'];
+    } else {
+        $bot_reply = $result['candidates'][0]['content']['parts'][0]['text'] ?? "Connection Error. No valid response from AI.";
+    }
+}
 curl_close($ch);
 
-$bot_reply = $result['candidates'][0]['content']['parts'][0]['text'] ?? "Connection Error. Please try again.";
 $bot_reply = str_replace('**', '"', $bot_reply); 
 
 $_SESSION['chat_history'][] = ["role" => "model", "parts" => [["text" => $bot_reply]]];
