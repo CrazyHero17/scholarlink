@@ -54,7 +54,6 @@ foreach ($all_scholarships as $sch) {
 }
 
 $nearest_deadline_label = $nearest_active_deadline ? date('M j, Y', $nearest_active_deadline) : 'None open';
-$distinct_statuses = array_values(array_unique(array_filter(array_column($all_scholarships, 'Status'))));
 $distinct_programs = array_values(array_unique(array_filter(array_column($all_scholarships, 'ProgramName'))));
 sort($distinct_programs);
 
@@ -69,22 +68,30 @@ $heroSlides = [
 function getProgramImage($programName) {
     $prog = strtolower($programName ?? '');
     $params = '?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
-    
-    if (strpos($prog, 'information technology') !== false || strpos($prog, 'computer') !== false || strpos($prog, 'it') !== false) {
-        return 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97' . $params;
-    } elseif (strpos($prog, 'agri') !== false || strpos($prog, 'forest') !== false) {
-        return 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449' . $params;
-    } elseif (strpos($prog, 'education') !== false || strpos($prog, 'teach') !== false || strpos($prog, 'ed') !== false) {
-        return 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655' . $params;
-    } elseif (strpos($prog, 'engineer') !== false || strpos($prog, 'arch') !== false) {
-        return 'https://images.unsplash.com/photo-1581092160562-40aa08e78837' . $params;
-    } elseif (strpos($prog, 'business') !== false || strpos($prog, 'account') !== false || strpos($prog, 'manage') !== false) {
-        return 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40' . $params;
-    } elseif (strpos($prog, 'vet') !== false || strpos($prog, 'med') !== false || strpos($prog, 'health') !== false || strpos($prog, 'sci') !== false) {
-        return 'https://images.unsplash.com/photo-1532094349884-543bc11b234d' . $params;
+
+    // Whole-word matching (\b...\b) so short fragments like "it" or "ed" can't
+    // match inside unrelated words (e.g. "Digital", "Nutrition", "Applied").
+    $categories = [
+        'photo-1517694712202-14dd9538aa97' => ['information technology', 'computer science', 'computer', '\bit\b'],
+        'photo-1625246333195-78d9c38ad449' => ['agri', 'forest'],
+        'photo-1524178232363-1fb2b075b655' => ['education', '\bteach', '\bed\b'],
+        'photo-1581092160562-40aa08e78837' => ['engineer', 'arch'],
+        'photo-1454165804606-c3d57bc86b40' => ['business', 'account', 'manage'],
+        'photo-1760917094679-d33f2ec13110' => ['arts and science', 'arts & science', 'liberal arts', 'general education'],
+        'photo-1532094349884-543bc11b234d' => ['veterinary', '\bvet\b', 'medic', 'health', 'science'],
+    ];
+
+    foreach ($categories as $photoId => $patterns) {
+        foreach ($patterns as $pattern) {
+            $isRegexFragment = strpos($pattern, '\b') !== false;
+            $regex = $isRegexFragment ? '/' . $pattern . '/' : '/' . preg_quote($pattern, '/') . '/';
+            if (preg_match($regex, $prog)) {
+                return 'https://images.unsplash.com/' . $photoId . $params;
+            }
+        }
     }
-    
-    return 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1' . $params; 
+
+    return 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1' . $params;
 }
 
 // Dynamic Urgency Logic
@@ -128,6 +135,7 @@ if ($is_logged_in) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ScholarLink - Tarlac Agricultural University</title>
+    <meta name="description" content="ScholarLink is the official scholarship management portal of Tarlac Agricultural University. Browse active grants, check your eligibility, and apply with a secure document vault.">
     <link rel="icon" type="image/png" href="assets/img/tau_logo.png">
     
     <!-- PWA Settings -->
@@ -145,11 +153,8 @@ if ($is_logged_in) {
             --muted: #5f7469;
             --line: #d7e8dd;
             --wash: #f3faf5;
-            --teal: #16845f;
             --green: #198754;
             --gold: #b7791f;
-            --crimson: #2f6f4e;
-            --blue: #198754;
             --page-max: 1180px;
             --page-gutter: clamp(20px, 4vw, 48px);
         }
@@ -381,7 +386,7 @@ if ($is_logged_in) {
 <body>
     
     <!-- LIVE ANNOUNCEMENT TICKER -->
-    <div class="bg-yellow-400 text-yellow-950 px-4 py-2.5 text-center text-[10px] sm:text-xs font-black uppercase tracking-widest relative z-[60] flex items-center justify-center gap-3">
+    <div class="bg-yellow-400 text-yellow-950 px-4 py-2.5 text-center text-[10px] sm:text-xs font-black uppercase tracking-widest relative z-[60] flex items-center justify-center gap-3" role="status" aria-live="polite">
         <span class="flex h-2 w-2 relative">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
             <span class="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
@@ -474,6 +479,13 @@ if ($is_logged_in) {
                 <h3 class="font-black text-slate-900 text-lg flex items-center gap-2"><i class="fas fa-bullseye text-green-600"></i> Smart Match Finder</h3>
                 <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">Find your eligibility instantly</span>
             </div>
+            <?php if ($active_scholarship_count > 0): ?>
+            <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-bold text-slate-500 -mt-2">
+                <span class="flex items-center gap-2"><i class="fas fa-graduation-cap text-green-600"></i> <?= $active_scholarship_count ?> Active Grant<?= $active_scholarship_count === 1 ? '' : 's' ?></span>
+                <span class="flex items-center gap-2"><i class="fas fa-sack-dollar text-green-600"></i> ₱<?= number_format($total_active_award_value) ?> Total Funding Pool</span>
+                <span class="flex items-center gap-2"><i class="fas fa-clock text-green-600"></i> Next Deadline: <?= htmlspecialchars($nearest_deadline_label) ?></span>
+            </div>
+            <?php endif; ?>
             <div class="search-grid w-full">
                 <div class="search-wrap">
                     <i class="fas fa-magnifying-glass"></i>
@@ -563,13 +575,13 @@ if ($is_logged_in) {
                                         </div>
                                         <div class="fact-row">
                                             <span>Grant Amount</span>
-                                            <strong class="highlight">₱<?= number_format($sch['AwardAmount']) ?></strong>
+                                            <strong class="highlight">₱<?= number_format((float) ($sch['AwardAmount'] ?? 0)) ?></strong>
                                         </div>
                                         <div class="fact-row">
                                             <span>Target Year</span>
-                                            <strong><?= !empty($sch['YearLevel']) ? $sch['YearLevel'] : 'All Levels' ?></strong>
+                                            <strong><?= !empty($sch['YearLevel']) ? htmlspecialchars($sch['YearLevel']) : 'All Levels' ?></strong>
                                         </div>
-                                        <a href="scholarship_details.php?id=<?= $sch['ScholarshipID'] ?>" class="program-link <?= $isActiveScholarship ? 'hover:bg-green-700 hover:border-green-700' : 'text-slate-500 hover:bg-slate-200 border-slate-200' ?>">
+                                        <a href="scholarship_details.php?id=<?= (int) $sch['ScholarshipID'] ?>" class="program-link <?= $isActiveScholarship ? 'hover:bg-green-700 hover:border-green-700' : 'text-slate-500 hover:bg-slate-200 border-slate-200' ?>">
                                             <?= $isActiveScholarship ? 'View & Apply <i class="fas fa-arrow-right"></i>' : 'View Details <i class="fas fa-eye"></i>' ?> 
                                         </a>
                                     </div>
@@ -681,7 +693,7 @@ if ($is_logged_in) {
                 <div class="faq-layout">
                 <div class="faq-list reveal">
                     <div class="faq-item">
-                        <button type="button" class="faq-question" onclick="toggleFaq(this)">
+                        <button type="button" class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
                             Who is eligible to apply?
                             <i class="fas fa-chevron-down"></i>
                         </button>
@@ -690,7 +702,7 @@ if ($is_logged_in) {
                         </div>
                     </div>
                     <div class="faq-item">
-                        <button type="button" class="faq-question" onclick="toggleFaq(this)">
+                        <button type="button" class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
                             Are dual scholarships allowed?
                             <i class="fas fa-chevron-down"></i>
                         </button>
@@ -699,7 +711,7 @@ if ($is_logged_in) {
                         </div>
                     </div>
                     <div class="faq-item">
-                        <button type="button" class="faq-question" onclick="toggleFaq(this)">
+                        <button type="button" class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
                             How do I upload my documents?
                             <i class="fas fa-chevron-down"></i>
                         </button>
@@ -708,7 +720,7 @@ if ($is_logged_in) {
                         </div>
                     </div>
                     <div class="faq-item">
-                        <button type="button" class="faq-question" onclick="toggleFaq(this)">
+                        <button type="button" class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
                             How will I know if my application is approved?
                             <i class="fas fa-chevron-down"></i>
                         </button>
@@ -790,6 +802,8 @@ if ($is_logged_in) {
             const slides = Array.from(document.querySelectorAll('.hero-slide'));
             if (slides.length <= 1) return;
 
+            const heroSection = document.querySelector('.hero');
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             let activeIndex = 0;
             let timerId = null;
 
@@ -800,12 +814,23 @@ if ($is_logged_in) {
             }
 
             function startTimer() {
+                if (prefersReducedMotion) return;
                 window.clearInterval(timerId);
                 timerId = window.setInterval(function () { showSlide(activeIndex + 1); }, 4800);
             }
 
+            function stopTimer() {
+                window.clearInterval(timerId);
+            }
+
             document.querySelector('[data-hero-slide="prev"]')?.addEventListener('click', function () { showSlide(activeIndex - 1); startTimer(); });
             document.querySelector('[data-hero-slide="next"]')?.addEventListener('click', function () { showSlide(activeIndex + 1); startTimer(); });
+
+            // Pause autoplay while the user is hovering or focused inside the hero
+            heroSection?.addEventListener('mouseenter', stopTimer);
+            heroSection?.addEventListener('mouseleave', startTimer);
+            heroSection?.addEventListener('focusin', stopTimer);
+            heroSection?.addEventListener('focusout', startTimer);
 
             startTimer();
         })();
@@ -820,15 +845,18 @@ if ($is_logged_in) {
                 if (openItem !== item) {
                     openItem.classList.remove('is-open');
                     openItem.querySelector('.faq-answer').style.maxHeight = null;
+                    openItem.querySelector('.faq-question').setAttribute('aria-expanded', 'false');
                 }
             });
 
             if (wasOpen) {
                 item.classList.remove('is-open');
                 answer.style.maxHeight = null;
+                button.setAttribute('aria-expanded', 'false');
             } else {
                 item.classList.add('is-open');
                 answer.style.maxHeight = answer.scrollHeight + 'px';
+                button.setAttribute('aria-expanded', 'true');
             }
         }
 
