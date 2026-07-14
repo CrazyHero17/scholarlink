@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3307
--- Generation Time: Jul 07, 2026 at 01:09 PM
+-- Generation Time: Jul 14, 2026 at 09:08 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -232,7 +232,12 @@ INSERT INTO `audit_log` (`AuditID`, `UserID`, `ActionPerformed`, `ActionDate`, `
 (143, 6, 'Auto Logout', '2026-06-29 13:44:25', 'User session expired due to inactivity.', '::1'),
 (144, 6, 'Auto Logout', '2026-06-29 14:00:54', 'User session expired due to inactivity.', '::1'),
 (145, 2, 'Auto Logout', '2026-06-29 14:28:44', 'User session expired due to inactivity.', '::1'),
-(146, 1, 'System Restore', '2026-07-01 00:47:10', 'Super Admin restored the database from a backup file.', '::1');
+(146, 1, 'System Restore', '2026-07-01 00:47:10', 'Super Admin restored the database from a backup file.', '::1'),
+(147, 6, 'Password Reset Requested', '2026-07-09 02:07:25', 'User requested a password reset link.', '::1'),
+(148, 6, 'Password Reset Requested', '2026-07-09 02:09:05', 'User requested a password reset link.', '::1'),
+(149, 16, 'Account Created', '2026-07-09 02:13:23', 'A new student account was registered via the portal.', '::1'),
+(150, 6, 'Password Reset Requested', '2026-07-09 03:09:49', 'User requested a password reset link.', '::1'),
+(151, 1, 'System Auto-Backup', '2026-07-09 03:10:51', 'Automated daily database backup completed.', 'System');
 
 -- --------------------------------------------------------
 
@@ -793,14 +798,15 @@ INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`,
 (3, 'ched_eval', 'region3@ched.gov.ph', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Regional', 'Evaluator', 'External_Admin', 'Active', NULL, NULL, NULL, NULL, NULL, NULL, 'CHED Region III', NULL, NULL, NULL, NULL, NULL, 'Not Specified'),
 (4, '2023-0001', 'juan@tau.edu.ph', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Juan', 'Dela cruz', 'Student', 'Active', '2023-0001', NULL, 1.45, 'BS Information Technology (BSIT)', 18, NULL, NULL, '09201952345', '2004-02-20', '../uploads/profiles/USER_4_PROFILE_1774007130.png', NULL, NULL, 'Not Specified'),
 (5, '2023-0002', 'maria@tau.edu.ph', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Maria', 'Clara', 'Student', 'Active', '2023-0002', NULL, 1.20, 'Agriculture', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Not Specified'),
-(6, '2023100194', 'cjcanaria63@gmail.com', '$2y$10$wLXMYYkp.yKwA3vKg6QNqeR0..8wfdMlyq9ZraYGKFbF2ebuHLmxW', 'Cj', 'Canaria', 'Student', 'Active', '2023100194', '3rd Year', 1.45, 'BS Information Technology (BSIT)', 18, NULL, NULL, '09369522832', '2001-06-12', '../uploads/profiles/USER_6_PROFILE_1777004051.jpg', NULL, NULL, 'Male'),
+(6, '2023100194', 'cjcanaria63@gmail.com', '$2y$10$wLXMYYkp.yKwA3vKg6QNqeR0..8wfdMlyq9ZraYGKFbF2ebuHLmxW', 'Cj', 'Canaria', 'Student', 'Active', '2023100194', '3rd Year', 1.45, 'BS Information Technology (BSIT)', 18, NULL, NULL, '09369522832', '2001-06-12', '../uploads/profiles/USER_6_PROFILE_1777004051.jpg', 'cc279c208ff806424f82f89bd8e91f43', '2026-07-09 12:09:29', 'Male'),
 (7, '2023100067', 'bbleb21@gmail.com', '$2y$10$E.Y5ibEodV06RUkZPeaj2e8j0ThJkyK..47RjvG0uso0mqxyUNhXm', 'Juan', 'Canaria', 'Student', 'Active', '2023100067', '2nd Year', 0.00, 'BS Tourism Management', 11, NULL, NULL, NULL, NULL, NULL, '9792e5c7e0a4c8b1fc15ef797aa34636b81cd221e3033ac39b22f9956940945f', '2026-05-19 21:04:47', 'Not Specified'),
 (9, '2023100797', 'chescamaetablarin@gmail.com', '$2y$10$F8IYhfJPlxbYOwavnTRDa.fPfR5TDyc30R6rgHvpw57rYnuU3OWd6', 'Chesca Mae', 'Tablarin', 'Student', 'Active', '2023100797', '3rd Year', 0.00, 'BS Information Technology (BSIT)', 18, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Female'),
 (11, '2023100068', 'jkcanaria123@gmail.com', '$2y$10$pGKywrMVkks058ChcQff/Or65qoV6de1j3yVwLrL7a443L791H8UW', 'John', 'Baloco', 'Student', 'Active', '2023100068', '2nd Year', 0.00, 'BS Geodetic Engineering', 17, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Male'),
 (12, '2023100184', 'jluna@gmail.com', '$2y$10$TZZShYuhtR1TqRcXouk37umalrBC5oVZ45/O2/dC3y8cTjS6YStua', 'Juan', 'De Luna', 'Student', 'Active', '2023100184', '2nd Year', 0.00, 'AB Economics', 5, NULL, NULL, '09216081819', '2008-12-18', NULL, NULL, NULL, 'Male'),
 (13, '2023100767', 'chescatablarinmangino@gmail.com', '$2y$10$pKnRPsVTD1BSVi06k.fbQufhNXxOHdLS6//f22Dla5lajv7ji91Xi', 'Chesca Mae', 'Tablarin', 'Student', 'Active', '2023100767', '1st Year', 0.00, 'BS Development Communication', 7, NULL, NULL, '09876754667', '2000-10-06', NULL, NULL, NULL, 'Female'),
 (14, '2023100269', 'robinzalzos@gmail.com', '$2y$10$uC3HuBstewUEZcHLA5WPB.Qu3EY4w8cduffPCGquIBGU/YjAvEibS', 'CJ', 'Dela Cruz', 'Student', 'Active', '2023100269', '2nd Year', 0.00, 'BS Psychology', 6, NULL, NULL, '09152347886', '1999-09-05', NULL, NULL, NULL, 'Male'),
-(15, '', 'chrisjunebagayansanidad@gmail.com', '$2y$10$UPaP0uVGqJgGChia74TeeuYjBvTiK3l35kJHpVkGIiIqQBtQCclPK', 'John', 'James', 'Student', 'Active', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Not Specified');
+(15, '', 'chrisjunebagayansanidad@gmail.com', '$2y$10$UPaP0uVGqJgGChia74TeeuYjBvTiK3l35kJHpVkGIiIqQBtQCclPK', 'John', 'James', 'Student', 'Active', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Not Specified'),
+(16, '2023100667', 'kalbostvfkmartin@gmail.com', '$2y$10$ZQlP34brUtkd3M3eGxfCCuIWyl7bKsgt/OLnegBao0.oA2Zibf4ze', 'Juan', 'Okay', 'Student', 'Active', '2023100667', '2nd Year', 0.00, 'BS Food Technology', 4, NULL, NULL, '09087141591', '2005-05-05', NULL, NULL, NULL, 'Male');
 
 -- --------------------------------------------------------
 
@@ -977,7 +983,7 @@ ALTER TABLE `application_custom_answers`
 -- AUTO_INCREMENT for table `audit_log`
 --
 ALTER TABLE `audit_log`
-  MODIFY `AuditID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=147;
+  MODIFY `AuditID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=152;
 
 --
 -- AUTO_INCREMENT for table `criteria`
@@ -1049,7 +1055,7 @@ ALTER TABLE `system_notifications`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `UserID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `UserID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `user_vault`
