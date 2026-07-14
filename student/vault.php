@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $file_name = $_FILES['vault_file']['name'];
         $tmp_name = $_FILES['vault_file']['tmp_name'];
         
-        // ✨ STRICT PDF CHECK INJECTED HERE
+        // STRICT PDF CHECK INJECTED HERE
         $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
         if ($file_ext !== 'pdf') {
             $upload_msg = "<div class='p-4 mb-4 text-md text-red-800 rounded-lg bg-red-50 font-bold border border-red-200'>⚠️ Upload failed. Only PDF files are allowed in the vault.</div>";
@@ -80,10 +80,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// --- FETCH SAVED DOCUMENTS ---
+// --- ✨ DYNAMIC DATABASE QUERIES ---
+
+// 1. Fetch ALL documents currently saved in the student's vault
 $stmt = $pdo->prepare("SELECT * FROM user_vault WHERE UserID = ? ORDER BY UploadDate DESC");
 $stmt->execute([$user_id]);
 $vault_files = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Create a simple array of just the Document Types the user already has for easy checking
+$saved_types = array_column($vault_files, 'DocumentType');
+
+// 2. Fetch ALL UNIQUE document requirements from ACTIVE scholarships in the database
+$req_stmt = $pdo->query("
+    SELECT DISTINCT dr.DocumentName 
+    FROM document_requirement dr
+    JOIN scholarship s ON dr.ScholarshipID = s.ScholarshipID
+    WHERE s.Status = 'Active'
+    ORDER BY dr.DocumentName ASC
+");
+$all_requirements = $req_stmt->fetchAll(PDO::FETCH_COLUMN);
+
 ?>
 
 <main class="flex-1 ml-72 p-10 bg-slate-50/50 min-h-screen">
@@ -96,6 +112,7 @@ $vault_files = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
+        <!-- ✨ SMART UPLOAD PANEL -->
         <div class="lg:col-span-1">
             <div class="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm">
                 <h3 class="font-black text-slate-900 uppercase tracking-widest text-md mb-6">Upload to Vault</h3>
@@ -105,16 +122,21 @@ $vault_files = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <div>
                         <label class="block text-md font-bold text-slate-700 mb-2">Document Type</label>
                         <select name="document_type" required class="w-full border border-slate-300 rounded-xl px-4 py-3 text-md focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900">
-                            <option value="Certificate of Registration (COR)">Certificate of Registration (COR)</option>
-                            <option value="Grades/Transcript">Grades/Transcript</option>
-                            <option value="School ID (Front & Back)">School ID (Front & Back)</option>
-                            <option value="Certificate of Indigency">Certificate of Indigency</option>
-                            <option value="Good Moral Certificate">Good Moral Certificate</option>
+                            <option value="">-- Select Requirement --</option>
+                            
+                            <?php foreach ($all_requirements as $req): ?>
+                                <?php $is_saved = in_array($req, $saved_types); ?>
+                                <option value="<?= htmlspecialchars($req) ?>">
+                                    <?= htmlspecialchars($req) ?> <?= $is_saved ? '✅ (Saved)' : '⚠️ (Missing)' ?>
+                                </option>
+                            <?php endforeach; ?>
+                            
                         </select>
+                        <p class="text-xs font-bold text-slate-400 mt-2">Options match active scholarships.</p>
                     </div>
 
                     <div>
-                        <label class="block text-md font-bold text-slate-700 mb-2">Select File (PDF Only)</label>
+                        <label class="block text-md font-bold text-slate-700 mb-2 mt-4">Select File (PDF Only)</label>
                         <input type="file" name="vault_file" accept=".pdf" required class="w-full text-md text-slate-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-md file:font-bold file:bg-slate-900 file:text-white hover:file:bg-slate-800 cursor-pointer border border-slate-300 rounded-xl">
                     </div>
 
@@ -125,6 +147,7 @@ $vault_files = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
 
+        <!-- SECURED DOCUMENTS PANEL -->
         <div class="lg:col-span-2">
             <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
                 <div class="p-6 border-b border-slate-100 flex justify-between items-center">

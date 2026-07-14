@@ -5,17 +5,6 @@ header("Cache-Control: post-check=0, pre-check=0", false);
 header("Pragma: no-cache");
 header("Expires: Sat, 26 Jul 1997 05:00:00 GMT"); // Force expiration in the past
 
-// ✨ 2. THE GLOBAL GATEKEEPER (Catches the Back Button)
-// If the user hits "Back" after logging out, the JS reloads the page.
-// This catches them immediately, sets a message, and bounces them.
-if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-    $_SESSION['error'] = "Session expired or unauthorized. Please log in again.";
-    
-    // Auto-detect if they were in the student or admin folder
-    $login_page = strpos($_SERVER['REQUEST_URI'], '/student/') !== false ? '../student_login.php' : '../admin_login.php';
-    header("Location: $login_page");
-    exit();
-}
 
 // ✨ 3. TIMEOUT LOGIC
 require_once __DIR__ . '/db_connect.php';

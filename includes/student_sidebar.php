@@ -34,6 +34,13 @@
             <span class="icon-box">📊</span>
             <span class="sidebar-text">Dashboard</span>
         </a>
+
+        <!-- ✨ DITO NATIN IDINAGDAG ANG BROWSE GRANTS (LANDING PAGE LINK) -->
+        <a href="../index.php" class="nav-link">
+            <span class="icon-box">🌐</span>
+            <span class="sidebar-text">Browse Grants</span>
+        </a>
+
         <a href="programs.php" class="nav-link <?= getSidebarClass('programs.php') ?>">
             <span class="icon-box">🎓</span>
             <span class="sidebar-text">Programs</span>

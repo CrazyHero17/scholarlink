@@ -1,5 +1,5 @@
 -- ScholarLink Automated Daily Backup
--- Date Generated: 2026-07-01 02:46:09
+-- Date Generated: 2026-07-09 05:10:51
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -54,7 +54,7 @@ CREATE TABLE `audit_log` (
   `Description` text DEFAULT NULL,
   `IPAddress` varchar(45) DEFAULT NULL,
   PRIMARY KEY (`AuditID`)
-) ENGINE=InnoDB AUTO_INCREMENT=146 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=151 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `audit_log` (`AuditID`, `UserID`, `ActionPerformed`, `ActionDate`, `Description`, `IPAddress`) VALUES ('1', '3', 'Document Verified', '2026-03-21 22:16:01', 'Evaluator marked Document #4 as Verified', '::1');
 INSERT INTO `audit_log` (`AuditID`, `UserID`, `ActionPerformed`, `ActionDate`, `Description`, `IPAddress`) VALUES ('2', '2', 'Application Approved', '2026-03-22 21:11:39', 'Internal Admin marked Application #6 as Approved', '::1');
@@ -201,6 +201,11 @@ INSERT INTO `audit_log` (`AuditID`, `UserID`, `ActionPerformed`, `ActionDate`, `
 INSERT INTO `audit_log` (`AuditID`, `UserID`, `ActionPerformed`, `ActionDate`, `Description`, `IPAddress`) VALUES ('143', '6', 'Auto Logout', '2026-06-29 21:44:25', 'User session expired due to inactivity.', '::1');
 INSERT INTO `audit_log` (`AuditID`, `UserID`, `ActionPerformed`, `ActionDate`, `Description`, `IPAddress`) VALUES ('144', '6', 'Auto Logout', '2026-06-29 22:00:54', 'User session expired due to inactivity.', '::1');
 INSERT INTO `audit_log` (`AuditID`, `UserID`, `ActionPerformed`, `ActionDate`, `Description`, `IPAddress`) VALUES ('145', '2', 'Auto Logout', '2026-06-29 22:28:44', 'User session expired due to inactivity.', '::1');
+INSERT INTO `audit_log` (`AuditID`, `UserID`, `ActionPerformed`, `ActionDate`, `Description`, `IPAddress`) VALUES ('146', '1', 'System Restore', '2026-07-01 08:47:10', 'Super Admin restored the database from a backup file.', '::1');
+INSERT INTO `audit_log` (`AuditID`, `UserID`, `ActionPerformed`, `ActionDate`, `Description`, `IPAddress`) VALUES ('147', '6', 'Password Reset Requested', '2026-07-09 10:07:25', 'User requested a password reset link.', '::1');
+INSERT INTO `audit_log` (`AuditID`, `UserID`, `ActionPerformed`, `ActionDate`, `Description`, `IPAddress`) VALUES ('148', '6', 'Password Reset Requested', '2026-07-09 10:09:05', 'User requested a password reset link.', '::1');
+INSERT INTO `audit_log` (`AuditID`, `UserID`, `ActionPerformed`, `ActionDate`, `Description`, `IPAddress`) VALUES ('149', '16', 'Account Created', '2026-07-09 10:13:23', 'A new student account was registered via the portal.', '::1');
+INSERT INTO `audit_log` (`AuditID`, `UserID`, `ActionPerformed`, `ActionDate`, `Description`, `IPAddress`) VALUES ('150', '6', 'Password Reset Requested', '2026-07-09 11:09:49', 'User requested a password reset link.', '::1');
 
 DROP TABLE IF EXISTS `criteria`;
 CREATE TABLE `criteria` (
@@ -233,6 +238,18 @@ INSERT INTO `document_requirement` (`RequirementID`, `ScholarshipID`, `DocumentN
 INSERT INTO `document_requirement` (`RequirementID`, `ScholarshipID`, `DocumentName`) VALUES ('10', '98', 'Report of Grades');
 INSERT INTO `document_requirement` (`RequirementID`, `ScholarshipID`, `DocumentName`) VALUES ('11', '98', 'Certificate of Registration');
 INSERT INTO `document_requirement` (`RequirementID`, `ScholarshipID`, `DocumentName`) VALUES ('12', '203', 'Certificate of Registration');
+
+DROP TABLE IF EXISTS `landing_content`;
+CREATE TABLE `landing_content` (
+  `section_key` varchar(50) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `body` text NOT NULL,
+  PRIMARY KEY (`section_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+INSERT INTO `landing_content` (`section_key`, `title`, `body`) VALUES ('grants_header', 'Active Scholarships', 'Currently accepting applications for this semester.');
+INSERT INTO `landing_content` (`section_key`, `title`, `body`) VALUES ('hero', 'Unlock your future with ScholarLink.', 'Discover financial assistance programs, track your applications, and focus on your education. Browse the available TAU grants below to get started.');
+INSERT INTO `landing_content` (`section_key`, `title`, `body`) VALUES ('no_grants', 'No active scholarships', 'There are currently no scholarship programs accepting applications. Please check back later.');
 
 DROP TABLE IF EXISTS `messages`;
 CREATE TABLE `messages` (
@@ -536,7 +553,7 @@ INSERT INTO `scholarship` (`ScholarshipID`, `ProgramID`, `YearLevel`, `Name`, `D
 INSERT INTO `scholarship` (`ScholarshipID`, `ProgramID`, `YearLevel`, `Name`, `Description`, `Deadline`, `AwardAmount`, `NumberOfSlots`, `Status`, `MinimumGWA`, `CreatedBy`, `GenderRequirement`, `ScholarshipType`, `FormConfig`, `ReleaseFrequency`, `AllowsDual`) VALUES ('200', '19', NULL, 'Small Animal Surgery Award', 'Award for vet surgery majors.', '2026-12-31', '10000.00', '15', 'Active', '2.50', '3', 'Any', 'Private', 'Academic,Family,Financial,Essay', 'Per Semester', 'No');
 INSERT INTO `scholarship` (`ScholarshipID`, `ProgramID`, `YearLevel`, `Name`, `Description`, `Deadline`, `AwardAmount`, `NumberOfSlots`, `Status`, `MinimumGWA`, `CreatedBy`, `GenderRequirement`, `ScholarshipType`, `FormConfig`, `ReleaseFrequency`, `AllowsDual`) VALUES ('201', '19', NULL, 'Veterinary Public Health Fund', 'Funding for vet public health projects.', '2026-12-31', '20000.00', '5', 'Active', '1.75', '3', 'Any', 'Private', 'Academic,Family,Financial,Essay', 'Per Semester', 'No');
 INSERT INTO `scholarship` (`ScholarshipID`, `ProgramID`, `YearLevel`, `Name`, `Description`, `Deadline`, `AwardAmount`, `NumberOfSlots`, `Status`, `MinimumGWA`, `CreatedBy`, `GenderRequirement`, `ScholarshipType`, `FormConfig`, `ReleaseFrequency`, `AllowsDual`) VALUES ('202', '19', NULL, 'Wildlife Conservation Stipend', 'Grant for wildlife vet medicine.', '2026-12-31', '8000.00', '20', 'Active', '2.50', '3', 'Any', 'Government', 'Academic,Family,Financial,Essay', 'Per Semester', 'No');
-INSERT INTO `scholarship` (`ScholarshipID`, `ProgramID`, `YearLevel`, `Name`, `Description`, `Deadline`, `AwardAmount`, `NumberOfSlots`, `Status`, `MinimumGWA`, `CreatedBy`, `GenderRequirement`, `ScholarshipType`, `FormConfig`, `ReleaseFrequency`, `AllowsDual`) VALUES ('203', '18', NULL, 'asfasfas', 'asfadsfasfas', '2026-07-30', '10000.00', '20', 'Active', '1.50', '3', 'Any', 'Private', 'Academic,Family,Financial,Essay', 'Per Semester', 'No');
+INSERT INTO `scholarship` (`ScholarshipID`, `ProgramID`, `YearLevel`, `Name`, `Description`, `Deadline`, `AwardAmount`, `NumberOfSlots`, `Status`, `MinimumGWA`, `CreatedBy`, `GenderRequirement`, `ScholarshipType`, `FormConfig`, `ReleaseFrequency`, `AllowsDual`) VALUES ('203', '18', NULL, 'asfasfas', 'asfadsfasfas', '2026-07-30', '10000.00', '20', 'Active', '1.50', '3', 'Any', 'Private', 'Academic,Family,Financial,Essay', 'Per Year', 'No');
 
 DROP TABLE IF EXISTS `scholarship_criteria`;
 CREATE TABLE `scholarship_criteria` (
@@ -618,12 +635,14 @@ CREATE TABLE `system_notifications` (
   `IsRead` tinyint(1) DEFAULT 0,
   `DateCreated` datetime DEFAULT current_timestamp(),
   PRIMARY KEY (`NotifID`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `system_notifications` (`NotifID`, `RecipientID`, `Title`, `Message`, `IsRead`, `DateCreated`) VALUES ('1', '3', 'MOA Deactivation Notice', 'Super Admin Notice: Your scholarship program \'asfasfas\' is flagged for deactivation based on the Memorandum of Agreement (MOA). Please review your terms or contact the Super Admin.', '1', '2026-06-29 22:01:19');
 INSERT INTO `system_notifications` (`NotifID`, `RecipientID`, `Title`, `Message`, `IsRead`, `DateCreated`) VALUES ('2', '3', 'MOA Deactivation Notice', 'Super Admin Notice: Your scholarship program \'asfasfas\' is flagged for deactivation based on the Memorandum of Agreement (MOA). Please review your terms or contact the Super Admin.', '1', '2026-06-29 22:05:16');
-INSERT INTO `system_notifications` (`NotifID`, `RecipientID`, `Title`, `Message`, `IsRead`, `DateCreated`) VALUES ('3', '3', 'MOA Deactivation Notice', 'System Notice: Your scholarship program \'asfasfas\' is flagged for deactivation based on the Memorandum of Agreement (MOA). Please review your terms or contact the University Admin.', '0', '2026-06-29 22:29:03');
+INSERT INTO `system_notifications` (`NotifID`, `RecipientID`, `Title`, `Message`, `IsRead`, `DateCreated`) VALUES ('3', '3', 'MOA Deactivation Notice', 'System Notice: Your scholarship program \'asfasfas\' is flagged for deactivation based on the Memorandum of Agreement (MOA). Please review your terms or contact the University Admin.', '1', '2026-06-29 22:29:03');
 INSERT INTO `system_notifications` (`NotifID`, `RecipientID`, `Title`, `Message`, `IsRead`, `DateCreated`) VALUES ('4', '2', 'MOA Deactivation Notice', 'The scholarship program \'asfasfas\' was flagged for MOA Deactivation. The External Provider has been officially notified.', '1', '2026-06-29 22:29:03');
+INSERT INTO `system_notifications` (`NotifID`, `RecipientID`, `Title`, `Message`, `IsRead`, `DateCreated`) VALUES ('5', '3', 'MOA Deactivation Notice', 'System Notice: Your scholarship program \'Wildlife Conservation Stipend\' is flagged for deactivation based on the Memorandum of Agreement (MOA). Please review your terms or contact the University Admin.', '0', '2026-07-01 09:24:02');
+INSERT INTO `system_notifications` (`NotifID`, `RecipientID`, `Title`, `Message`, `IsRead`, `DateCreated`) VALUES ('6', '2', 'MOA Deactivation Notice', 'The scholarship program \'Wildlife Conservation Stipend\' was flagged for MOA Deactivation. The External Provider has been officially notified.', '0', '2026-07-01 09:24:02');
 
 DROP TABLE IF EXISTS `system_settings`;
 CREATE TABLE `system_settings` (
@@ -677,14 +696,14 @@ CREATE TABLE `users` (
   PRIMARY KEY (`UserID`),
   UNIQUE KEY `Username` (`Username`),
   UNIQUE KEY `Email` (`Email`)
-) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`, `LastName`, `Role`, `AccountStatus`, `StudentID_Num`, `YearLevel`, `GPA`, `Major`, `ProgramID`, `Department`, `Organization`, `ContactNumber`, `DateOfBirth`, `ProfilePicture`, `ResetToken`, `ResetTokenExpire`, `Gender`) VALUES ('1', 'superadmin', 'admin@tau.edu.ph', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'System', 'Admin', 'Super_Admin', 'Active', NULL, NULL, NULL, NULL, NULL, 'IT Department', NULL, NULL, NULL, NULL, NULL, NULL, 'Not Specified');
 INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`, `LastName`, `Role`, `AccountStatus`, `StudentID_Num`, `YearLevel`, `GPA`, `Major`, `ProgramID`, `Department`, `Organization`, `ContactNumber`, `DateOfBirth`, `ProfilePicture`, `ResetToken`, `ResetTokenExpire`, `Gender`) VALUES ('2', 'internal01', 'scholarships@tau.edu.ph', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Office of', 'Student Affairs', 'Internal_Admin', 'Active', NULL, NULL, NULL, NULL, NULL, 'OSA', NULL, NULL, NULL, NULL, NULL, NULL, 'Not Specified');
 INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`, `LastName`, `Role`, `AccountStatus`, `StudentID_Num`, `YearLevel`, `GPA`, `Major`, `ProgramID`, `Department`, `Organization`, `ContactNumber`, `DateOfBirth`, `ProfilePicture`, `ResetToken`, `ResetTokenExpire`, `Gender`) VALUES ('3', 'ched_eval', 'region3@ched.gov.ph', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Regional', 'Evaluator', 'External_Admin', 'Active', NULL, NULL, NULL, NULL, NULL, NULL, 'CHED Region III', NULL, NULL, NULL, NULL, NULL, 'Not Specified');
 INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`, `LastName`, `Role`, `AccountStatus`, `StudentID_Num`, `YearLevel`, `GPA`, `Major`, `ProgramID`, `Department`, `Organization`, `ContactNumber`, `DateOfBirth`, `ProfilePicture`, `ResetToken`, `ResetTokenExpire`, `Gender`) VALUES ('4', '2023-0001', 'juan@tau.edu.ph', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Juan', 'Dela cruz', 'Student', 'Active', '2023-0001', NULL, '1.45', 'BS Information Technology (BSIT)', '18', NULL, NULL, '09201952345', '2004-02-20', '../uploads/profiles/USER_4_PROFILE_1774007130.png', NULL, NULL, 'Not Specified');
 INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`, `LastName`, `Role`, `AccountStatus`, `StudentID_Num`, `YearLevel`, `GPA`, `Major`, `ProgramID`, `Department`, `Organization`, `ContactNumber`, `DateOfBirth`, `ProfilePicture`, `ResetToken`, `ResetTokenExpire`, `Gender`) VALUES ('5', '2023-0002', 'maria@tau.edu.ph', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Maria', 'Clara', 'Student', 'Active', '2023-0002', NULL, '1.20', 'Agriculture', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Not Specified');
-INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`, `LastName`, `Role`, `AccountStatus`, `StudentID_Num`, `YearLevel`, `GPA`, `Major`, `ProgramID`, `Department`, `Organization`, `ContactNumber`, `DateOfBirth`, `ProfilePicture`, `ResetToken`, `ResetTokenExpire`, `Gender`) VALUES ('6', '2023100194', 'cjcanaria63@gmail.com', '$2y$10$wLXMYYkp.yKwA3vKg6QNqeR0..8wfdMlyq9ZraYGKFbF2ebuHLmxW', 'Cj', 'Canaria', 'Student', 'Active', '2023100194', '3rd Year', '1.45', 'BS Information Technology (BSIT)', '18', NULL, NULL, '09369522832', '2001-06-12', '../uploads/profiles/USER_6_PROFILE_1777004051.jpg', NULL, NULL, 'Male');
+INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`, `LastName`, `Role`, `AccountStatus`, `StudentID_Num`, `YearLevel`, `GPA`, `Major`, `ProgramID`, `Department`, `Organization`, `ContactNumber`, `DateOfBirth`, `ProfilePicture`, `ResetToken`, `ResetTokenExpire`, `Gender`) VALUES ('6', '2023100194', 'cjcanaria63@gmail.com', '$2y$10$wLXMYYkp.yKwA3vKg6QNqeR0..8wfdMlyq9ZraYGKFbF2ebuHLmxW', 'Cj', 'Canaria', 'Student', 'Active', '2023100194', '3rd Year', '1.45', 'BS Information Technology (BSIT)', '18', NULL, NULL, '09369522832', '2001-06-12', '../uploads/profiles/USER_6_PROFILE_1777004051.jpg', 'cc279c208ff806424f82f89bd8e91f43', '2026-07-09 12:09:29', 'Male');
 INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`, `LastName`, `Role`, `AccountStatus`, `StudentID_Num`, `YearLevel`, `GPA`, `Major`, `ProgramID`, `Department`, `Organization`, `ContactNumber`, `DateOfBirth`, `ProfilePicture`, `ResetToken`, `ResetTokenExpire`, `Gender`) VALUES ('7', '2023100067', 'bbleb21@gmail.com', '$2y$10$E.Y5ibEodV06RUkZPeaj2e8j0ThJkyK..47RjvG0uso0mqxyUNhXm', 'Juan', 'Canaria', 'Student', 'Active', '2023100067', '2nd Year', '0.00', 'BS Tourism Management', '11', NULL, NULL, NULL, NULL, NULL, '9792e5c7e0a4c8b1fc15ef797aa34636b81cd221e3033ac39b22f9956940945f', '2026-05-19 21:04:47', 'Not Specified');
 INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`, `LastName`, `Role`, `AccountStatus`, `StudentID_Num`, `YearLevel`, `GPA`, `Major`, `ProgramID`, `Department`, `Organization`, `ContactNumber`, `DateOfBirth`, `ProfilePicture`, `ResetToken`, `ResetTokenExpire`, `Gender`) VALUES ('9', '2023100797', 'chescamaetablarin@gmail.com', '$2y$10$F8IYhfJPlxbYOwavnTRDa.fPfR5TDyc30R6rgHvpw57rYnuU3OWd6', 'Chesca Mae', 'Tablarin', 'Student', 'Active', '2023100797', '3rd Year', '0.00', 'BS Information Technology (BSIT)', '18', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Female');
 INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`, `LastName`, `Role`, `AccountStatus`, `StudentID_Num`, `YearLevel`, `GPA`, `Major`, `ProgramID`, `Department`, `Organization`, `ContactNumber`, `DateOfBirth`, `ProfilePicture`, `ResetToken`, `ResetTokenExpire`, `Gender`) VALUES ('11', '2023100068', 'jkcanaria123@gmail.com', '$2y$10$pGKywrMVkks058ChcQff/Or65qoV6de1j3yVwLrL7a443L791H8UW', 'John', 'Baloco', 'Student', 'Active', '2023100068', '2nd Year', '0.00', 'BS Geodetic Engineering', '17', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Male');
@@ -692,5 +711,6 @@ INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`,
 INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`, `LastName`, `Role`, `AccountStatus`, `StudentID_Num`, `YearLevel`, `GPA`, `Major`, `ProgramID`, `Department`, `Organization`, `ContactNumber`, `DateOfBirth`, `ProfilePicture`, `ResetToken`, `ResetTokenExpire`, `Gender`) VALUES ('13', '2023100767', 'chescatablarinmangino@gmail.com', '$2y$10$pKnRPsVTD1BSVi06k.fbQufhNXxOHdLS6//f22Dla5lajv7ji91Xi', 'Chesca Mae', 'Tablarin', 'Student', 'Active', '2023100767', '1st Year', '0.00', 'BS Development Communication', '7', NULL, NULL, '09876754667', '2000-10-06', NULL, NULL, NULL, 'Female');
 INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`, `LastName`, `Role`, `AccountStatus`, `StudentID_Num`, `YearLevel`, `GPA`, `Major`, `ProgramID`, `Department`, `Organization`, `ContactNumber`, `DateOfBirth`, `ProfilePicture`, `ResetToken`, `ResetTokenExpire`, `Gender`) VALUES ('14', '2023100269', 'robinzalzos@gmail.com', '$2y$10$uC3HuBstewUEZcHLA5WPB.Qu3EY4w8cduffPCGquIBGU/YjAvEibS', 'CJ', 'Dela Cruz', 'Student', 'Active', '2023100269', '2nd Year', '0.00', 'BS Psychology', '6', NULL, NULL, '09152347886', '1999-09-05', NULL, NULL, NULL, 'Male');
 INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`, `LastName`, `Role`, `AccountStatus`, `StudentID_Num`, `YearLevel`, `GPA`, `Major`, `ProgramID`, `Department`, `Organization`, `ContactNumber`, `DateOfBirth`, `ProfilePicture`, `ResetToken`, `ResetTokenExpire`, `Gender`) VALUES ('15', '', 'chrisjunebagayansanidad@gmail.com', '$2y$10$UPaP0uVGqJgGChia74TeeuYjBvTiK3l35kJHpVkGIiIqQBtQCclPK', 'John', 'James', 'Student', 'Active', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Not Specified');
+INSERT INTO `users` (`UserID`, `Username`, `Email`, `PasswordHash`, `FirstName`, `LastName`, `Role`, `AccountStatus`, `StudentID_Num`, `YearLevel`, `GPA`, `Major`, `ProgramID`, `Department`, `Organization`, `ContactNumber`, `DateOfBirth`, `ProfilePicture`, `ResetToken`, `ResetTokenExpire`, `Gender`) VALUES ('16', '2023100667', 'kalbostvfkmartin@gmail.com', '$2y$10$ZQlP34brUtkd3M3eGxfCCuIWyl7bKsgt/OLnegBao0.oA2Zibf4ze', 'Juan', 'Okay', 'Student', 'Active', '2023100667', '2nd Year', '0.00', 'BS Food Technology', '4', NULL, NULL, '09087141591', '2005-05-05', NULL, NULL, NULL, 'Male');
 
 SET FOREIGN_KEY_CHECKS = 1;

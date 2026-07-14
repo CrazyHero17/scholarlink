@@ -1,303 +1,360 @@
 <?php
 session_start();
 require 'includes/db_connect.php';
+require 'includes/session_manager.php';
 
-// Validate requested ID
-$scholarship_id = $_GET['id'] ?? null;
-if (!$scholarship_id) {
-    header("Location: index.php");
-    exit();
-}
+$scholarship_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$is_logged_in = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
+$is_student = $is_logged_in && ($_SESSION['role'] === 'Student');
+$user_id = $_SESSION['user_id'] ?? null;
 
-// Fetch main scholarship data
+// 1. FETCH SCHOLARSHIP DETAILS & SPONSOR INFO
 try {
     $stmt = $pdo->prepare("
-        SELECT s.*, p.ProgramName 
+        SELECT s.*, p.ProgramName, u.Organization as SponsorName, u.FirstName, u.LastName 
         FROM scholarship s 
         LEFT JOIN program p ON s.ProgramID = p.ProgramID 
-        WHERE s.ScholarshipID = :id
+        LEFT JOIN users u ON s.CreatedBy = u.UserID 
+        WHERE s.ScholarshipID = ?
     ");
-    $stmt->execute(['id' => $scholarship_id]);
+    $stmt->execute([$scholarship_id]);
     $scholarship = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$scholarship) {
-        header("Location: index.php");
-        exit();
+        die("<h2>Scholarship not found.</h2><a href='index.php'>Go back</a>");
     }
 
-    // Fetch dynamic fields
-    $req_stmt = $pdo->prepare("SELECT DocumentName FROM document_requirement WHERE ScholarshipID = ?");
+    $sponsor_name = !empty($scholarship['SponsorName']) ? $scholarship['SponsorName'] : trim($scholarship['FirstName'] . ' ' . $scholarship['LastName']);
+    if (empty($sponsor_name)) $sponsor_name = 'TAU Institutional Fund';
+
+    // 2. FETCH REQUIREMENTS FOR THIS SCHOLARSHIP
+    $req_stmt = $pdo->prepare("SELECT * FROM document_requirement WHERE ScholarshipID = ?");
     $req_stmt->execute([$scholarship_id]);
-    $requirements = $req_stmt->fetchAll(PDO::FETCH_COLUMN);
+    $requirements = $req_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $crit_stmt = $pdo->prepare("SELECT CriteriaName FROM scholarship_criteria WHERE ScholarshipID = ?");
-    $crit_stmt->execute([$scholarship_id]);
-    $criteria = $crit_stmt->fetchAll(PDO::FETCH_COLUMN);
+    // 3. STUDENT ELIGIBILITY CHECKER
+    $has_applied = false;
+    $is_eligible_gwa = true;
+    $missing_docs = [];
+    $student_gwa = 5.00;
+    $application_status = '';
 
-    $cust_stmt = $pdo->prepare("SELECT FieldName FROM scholarship_custom_fields WHERE ScholarshipID = ?");
-    $cust_stmt->execute([$scholarship_id]);
-    $custom_fields = $cust_stmt->fetchAll(PDO::FETCH_COLUMN);
+    if ($is_student) {
+        // Check if already applied
+        $app_stmt = $pdo->prepare("SELECT Status FROM application WHERE ScholarshipID = ? AND UserID = ?");
+        $app_stmt->execute([$scholarship_id, $user_id]);
+        $existing_app = $app_stmt->fetch();
+        
+        if ($existing_app) {
+            $has_applied = true;
+            $application_status = $existing_app['Status'];
+        } else {
+            // Fetch Student Details
+            $user_stmt = $pdo->prepare("SELECT GPA FROM users WHERE UserID = ?");
+            $user_stmt->execute([$user_id]);
+            $student_data = $user_stmt->fetch();
+            $student_gwa = (float)($student_data['GPA'] ?? 5.00);
+
+            if ($student_gwa > (float)$scholarship['MinimumGWA'] || $student_gwa == 0.00) {
+                $is_eligible_gwa = false;
+            }
+
+            // Fetch Student Vault
+            $vault_stmt = $pdo->prepare("SELECT DocumentType FROM user_vault WHERE UserID = ?");
+            $vault_stmt->execute([$user_id]);
+            $vault_docs = $vault_stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            // Cross-match requirements with vault
+            foreach ($requirements as $req) {
+                if (!in_array($req['DocumentName'], $vault_docs)) {
+                    $missing_docs[] = $req['DocumentName'];
+                }
+            }
+        }
+    }
 
 } catch (PDOException $e) {
-    die("Error loading scholarship details.");
+    die("Database Error: " . $e->getMessage());
 }
-
-// ✨ FIXED: Added Security Parameters (ixlib) and verified Image IDs
-function getProgramImage($programName) {
-    $prog = strtolower($programName ?? '');
-    $params = '?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80';
-    
-    if (strpos($prog, 'information technology') !== false || strpos($prog, 'computer') !== false || strpos($prog, 'it') !== false) {
-        return 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97' . $params;
-    } elseif (strpos($prog, 'agri') !== false || strpos($prog, 'forest') !== false) {
-        return 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449' . $params; // Stable agriculture image
-    } elseif (strpos($prog, 'education') !== false || strpos($prog, 'teach') !== false || strpos($prog, 'ed') !== false) {
-        return 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655' . $params;
-    } elseif (strpos($prog, 'engineer') !== false || strpos($prog, 'arch') !== false) {
-        return 'https://images.unsplash.com/photo-1581092160562-40aa08e78837' . $params;
-    } elseif (strpos($prog, 'business') !== false || strpos($prog, 'account') !== false || strpos($prog, 'manage') !== false) {
-        return 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40' . $params;
-    } elseif (strpos($prog, 'vet') !== false || strpos($prog, 'med') !== false || strpos($prog, 'health') !== false || strpos($prog, 'sci') !== false) {
-        return 'https://images.unsplash.com/photo-1532094349884-543bc11b234d' . $params;
-    }
-    
-    return 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1' . $params; 
-}
-
-$heroImage = getProgramImage($scholarship['ProgramName']);
-
-// Check session
-$is_logged_in = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
-$role_redirect = "student_login.php";
-if ($is_logged_in) {
-    if ($_SESSION['role'] === 'Student') $role_redirect = "student/dashboard.php";
-    elseif ($_SESSION['role'] === 'Internal_Admin') $role_redirect = "internal_admin/dashboard.php";
-    elseif ($_SESSION['role'] === 'External_Admin') $role_redirect = "external_admin/dashboard.php";
-    elseif ($_SESSION['role'] === 'Super_Admin') $role_redirect = "super_admin/dashboard.php";
-}
-
-$status = $scholarship['Status'] ?? 'Active';
-$isActive = strtolower($status) === 'active';
-$deadline = $scholarship['Deadline'] ? date('M d, Y', strtotime($scholarship['Deadline'])) : 'No deadline';
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($scholarship['Name']) ?> - ScholarLink</title>
-    <link rel="icon" type="image/png" href="assets/img/tau_logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <style>
-        :root {
-            --ink: #123524;
-            --muted: #5f7469;
-            --line: #d7e8dd;
-            --wash: #f3faf5;
-            --green: #198754;
-            --gold: #b7791f;
-        }
-        body { font-family: 'Plus Jakarta Sans', Arial, sans-serif; background: var(--wash); color: var(--ink); }
-        .site-header { position: sticky; top: 0; z-index: 50; background: rgba(255, 255, 255, 0.95); box-shadow: 0 7px 20px rgba(0, 0, 0, 0.06); backdrop-filter: blur(14px); }
-        .nav-shell { width: min(1180px, calc(100% - 40px)); margin: 0 auto; min-height: 82px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-        .brand { display: inline-flex; align-items: center; gap: 12px; }
-        .brand img { width: 44px; height: 44px; transition: transform 0.3s ease; }
-        .brand:hover img { transform: scale(1.05); }
-        .brand strong { display: block; font-size: 1.05rem; letter-spacing: -0.02em; color: var(--ink); }
-        .brand span { display: block; color: var(--gold); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
-        
-        .page-container { width: min(1180px, calc(100% - 40px)); margin: 40px auto 80px; }
-        .content-grid { display: grid; grid-template-columns: 2.2fr 1fr; gap: 32px; align-items: start; }
-
-        /* FIXED HERO BANNER CSS */
-        .hero-banner {
-            position: relative;
-            background: linear-gradient(135deg, #0f5132 0%, #198754 100%); /* Fallback gradient */
-            border-radius: 1.5rem;
-            overflow: hidden;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            margin-bottom: 2.5rem;
-            min-height: 380px;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-        }
-
-        .btn-primary { background: var(--green); color: #fff; font-weight: 800; padding: 16px 24px; border-radius: 12px; text-align: center; display: block; width: 100%; transition: all 0.2s; box-shadow: 0 10px 20px rgba(25, 135, 84, 0.15); }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(25, 135, 84, 0.25); color: #fff; }
-        
-        .btn-ghost { background: #fff; border: 1px solid var(--line); color: var(--ink); font-weight: 800; padding: 16px 24px; border-radius: 12px; text-align: center; display: block; width: 100%; transition: all 0.2s; }
-        .btn-ghost:hover { border-color: var(--green); color: var(--green); background: #f8fafc; }
-
-        .tag-pill { display: inline-block; background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); color: #fff; padding: 6px 16px; border-radius: 999px; font-size: 0.75rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.3); }
-
-        @media (max-width: 900px) {
-            .content-grid { grid-template-columns: 1fr; }
-        }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #0f172a; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid #e2e8f0; }
     </style>
 </head>
 <body>
 
-    <header class="site-header">
-        <nav class="nav-shell">
-            <a class="brand" href="index.php">
-                <img src="assets/img/tau_logo.png" alt="TAU Logo">
-                <span>
-                    <strong>ScholarLink</strong>
-                    <span>Tarlac Agricultural University</span>
-                </span>
+    <!-- Header Navigation -->
+    <nav class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <a href="index.php" class="flex items-center gap-3">
+                <img src="assets/img/tau_logo.png" alt="TAU Logo" class="h-10 w-10">
+                <div>
+                    <h1 class="font-black text-slate-900 leading-tight">ScholarLink</h1>
+                    <p class="text-[10px] font-bold text-green-600 uppercase tracking-widest">Tarlac Agricultural University</p>
+                </div>
             </a>
             <div>
-                <a href="index.php" class="text-slate-500 font-bold hover:text-green-700 transition-colors"><i class="fas fa-arrow-left mr-2"></i> Back to Grants</a>
+                <?php if ($is_student): ?>
+                    <a href="student/dashboard.php" class="text-sm font-bold text-slate-600 hover:text-green-600 mr-4">My Dashboard</a>
+                <?php endif; ?>
+                <a href="index.php" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold py-2.5 px-5 rounded-xl transition-all">Back to Home</a>
             </div>
-        </nav>
-    </header>
+        </div>
+    </nav>
 
-    <div class="page-container">
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         
-        <!-- ✨ FIXED: Added onerror="this.style.display='none'" so broken images gracefully disappear -->
-        <div class="hero-banner group">
-            <img src="<?= $heroImage ?>" onerror="this.style.display='none'" alt="Program Background" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
-            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/70 to-transparent"></div>
+        <!-- Flash Messages -->
+        <?php if(isset($_SESSION['success'])): ?>
+            <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-800 font-bold flex items-center gap-3">
+                <i class="fas fa-check-circle text-xl"></i> <?= $_SESSION['success']; unset($_SESSION['success']); ?>
+            </div>
+        <?php endif; ?>
+        <?php if(isset($_SESSION['error'])): ?>
+            <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 font-bold flex items-center gap-3">
+                <i class="fas fa-exclamation-circle text-xl"></i> <?= $_SESSION['error']; unset($_SESSION['error']); ?>
+            </div>
+        <?php endif; ?>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            <div class="relative z-10 p-8 lg:p-12 text-white">
-                <div class="flex flex-wrap items-center gap-3 mb-4">
-                    <span class="tag-pill"><?= htmlspecialchars($scholarship['ProgramName'] ?? 'Open to All Courses') ?></span>
-                    <?php if($isActive): ?>
-                        <span class="inline-block bg-green-500/20 backdrop-blur-md text-green-300 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-green-500/30 shadow-sm"><i class="fas fa-circle text-[8px] mr-1 animate-pulse"></i> Accepting Applicants</span>
+            <!-- LEFT COLUMN: Details -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="glass-panel p-8 rounded-[2rem] shadow-sm relative overflow-hidden">
+                    <!-- Ribbon -->
+                    <div class="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-green-500 to-green-700"></div>
+                    
+                    <span class="inline-block px-3 py-1 bg-green-100 text-green-700 text-xs font-black uppercase tracking-widest rounded-lg mb-4">
+                        <?= htmlspecialchars($scholarship['ScholarshipType']) ?> Grant
+                    </span>
+                    
+                    <h1 class="text-3xl md:text-4xl font-black text-slate-900 mb-4 leading-tight">
+                        <?= htmlspecialchars($scholarship['Name']) ?>
+                    </h1>
+                    
+                    <div class="flex items-center gap-3 text-slate-500 font-medium mb-6">
+                        <i class="fas fa-building text-slate-400"></i>
+                        <span>Funded by <strong class="text-slate-700"><?= htmlspecialchars($sponsor_name) ?></strong></span>
+                    </div>
+
+                    <p class="text-slate-600 text-lg leading-relaxed mb-8">
+                        <?= nl2br(htmlspecialchars($scholarship['Description'])) ?>
+                    </p>
+
+                    <!-- Fast Facts Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Target Program</p>
+                            <p class="font-bold text-slate-800 text-sm"><?= htmlspecialchars($scholarship['ProgramName'] ?? 'Open to All') ?></p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Target Year</p>
+                            <p class="font-bold text-slate-800 text-sm"><?= htmlspecialchars($scholarship['YearLevel'] ?? 'All Levels') ?></p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Min. GWA</p>
+                            <p class="font-bold text-slate-800 text-sm"><?= number_format($scholarship['MinimumGWA'], 2) ?></p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Award Amount</p>
+                            <p class="font-black text-green-600 text-sm">₱<?= number_format($scholarship['AwardAmount'], 2) ?></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-8 rounded-[2rem] shadow-sm">
+                    <h3 class="text-xl font-black text-slate-900 mb-6 flex items-center gap-3">
+                        <i class="fas fa-file-contract text-blue-500"></i> Required Documents
+                    </h3>
+                    
+                    <?php if (empty($requirements)): ?>
+                        <p class="text-slate-500 font-medium italic">No specific documents required.</p>
                     <?php else: ?>
-                        <span class="inline-block bg-slate-500/30 backdrop-blur-md text-slate-300 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-slate-500/30 shadow-sm"><i class="fas fa-lock text-[10px] mr-1"></i> Closed</span>
+                        <ul class="space-y-4">
+                            <?php foreach($requirements as $req): ?>
+                                <?php 
+                                    $is_in_vault = $is_student && !in_array($req['DocumentName'], $missing_docs); 
+                                ?>
+                                <li class="flex items-center justify-between p-4 rounded-xl <?= $is_in_vault ? 'bg-green-50 border border-green-100' : 'bg-slate-50 border border-slate-200' ?>">
+                                    <div class="flex items-center gap-3">
+                                        <i class="fas fa-file-pdf <?= $is_in_vault ? 'text-green-500' : 'text-red-400' ?> text-xl"></i>
+                                        <span class="font-bold <?= $is_in_vault ? 'text-green-800' : 'text-slate-700' ?>"><?= htmlspecialchars($req['DocumentName']) ?></span>
+                                    </div>
+                                    <?php if ($is_student): ?>
+                                        <?php if ($is_in_vault): ?>
+                                            <span class="text-xs font-black bg-green-200 text-green-700 px-3 py-1 rounded-full uppercase tracking-widest">Ready in Vault</span>
+                                        <?php else: ?>
+                                            <span class="text-xs font-black bg-red-100 text-red-600 px-3 py-1 rounded-full uppercase tracking-widest">Missing</span>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
                     <?php endif; ?>
                 </div>
-                
-                <h1 class="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight leading-tight"><?= htmlspecialchars($scholarship['Name']) ?></h1>
             </div>
-        </div>
 
-        <div class="content-grid">
-            
-            <!-- LEFT COLUMN: Content -->
-            <div class="space-y-8">
+            <!-- RIGHT COLUMN: Application Panel & Timer -->
+            <div class="lg:col-span-1 space-y-6">
                 
-                <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
-                    <h3 class="text-xl font-black text-slate-900 mb-4 flex items-center gap-3"><i class="fas fa-circle-info text-blue-600"></i> About this Scholarship</h3>
-                    <p class="text-slate-600 font-medium leading-relaxed whitespace-pre-wrap"><?= htmlspecialchars($scholarship['Description']) ?></p>
-                </div>
-
-                <?php if (!empty($criteria)): ?>
-                <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
-                    <h3 class="text-xl font-black text-slate-900 mb-6 flex items-center gap-3"><i class="fas fa-list-check text-green-600"></i> Qualification Criteria</h3>
-                    <ul class="space-y-4">
-                        <?php foreach($criteria as $c): ?>
-                            <li class="flex items-start gap-4">
-                                <span class="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="fas fa-check text-xs"></i></span>
-                                <span class="text-slate-700 font-medium"><?= htmlspecialchars($c) ?></span>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-                <?php endif; ?>
-
-                <?php if (!empty($requirements)): ?>
-                <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
-                    <h3 class="text-xl font-black text-slate-900 mb-6 flex items-center gap-3"><i class="fas fa-folder-open text-amber-500"></i> Required Documents</h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <?php foreach($requirements as $r): ?>
-                            <div class="bg-slate-50 border border-slate-100 rounded-xl p-4 flex items-center gap-3">
-                                <i class="fas fa-file-pdf text-slate-400 text-xl"></i>
-                                <span class="text-slate-700 font-bold text-sm"><?= htmlspecialchars($r) ?></span>
-                            </div>
-                        <?php endforeach; ?>
+                <!-- Countdown Timer Widget -->
+                <div class="glass-panel p-6 rounded-[2rem] shadow-sm text-center">
+                    <div class="w-12 h-12 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fas fa-hourglass-half animate-pulse"></i>
                     </div>
-                </div>
-                <?php endif; ?>
-
-                <?php if (!empty($custom_fields)): ?>
-                <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
-                    <h3 class="text-xl font-black text-slate-900 mb-6 flex items-center gap-3"><i class="fas fa-clipboard-question text-purple-600"></i> Additional Application Questions</h3>
-                    <p class="text-slate-500 font-medium mb-4 text-sm">You will be required to answer these questions during your application process:</p>
-                    <ul class="list-disc list-inside text-slate-700 font-medium space-y-2 ml-4">
-                        <?php foreach($custom_fields as $cf): ?>
-                            <li><?= htmlspecialchars($cf) ?></li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-                <?php endif; ?>
-
-            </div>
-
-            <!-- RIGHT COLUMN: Sticky Sidebar -->
-            <div class="sticky top-28 space-y-6">
-                
-                <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
-                    <h3 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-6">Scholarship Overview</h3>
+                    <h3 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-1">Application Deadline</h3>
+                    <p class="font-bold text-slate-800 mb-6"><?= date('F j, Y', strtotime($scholarship['Deadline'])) ?></p>
                     
-                    <div class="space-y-6">
-                        <div>
-                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Grant Amount</span>
-                            <span class="text-3xl font-black text-yellow-600">₱<?= number_format($scholarship['AwardAmount']) ?></span>
-                            <span class="text-xs font-bold text-slate-500 ml-1"><?= htmlspecialchars($scholarship['ReleaseFrequency'] ?? 'Per Semester') ?></span>
+                    <div id="countdown" class="grid grid-cols-3 gap-2" data-deadline="<?= $scholarship['Deadline'] ?> 23:59:59">
+                        <div class="bg-slate-900 text-white rounded-xl p-3">
+                            <span id="days" class="block text-2xl font-black">--</span>
+                            <span class="text-[9px] uppercase tracking-widest opacity-70 font-bold">Days</span>
                         </div>
-                        
-                        <div class="grid grid-cols-2 gap-4 border-t border-slate-100 pt-6">
-                            <div>
-                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Min GWA</span>
-                                <span class="text-lg font-black text-green-700"><?= htmlspecialchars($scholarship['MinimumGWA']) ?></span>
-                            </div>
-                            <div>
-                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Slots</span>
-                                <span class="text-lg font-black text-slate-700"><?= $scholarship['NumberOfSlots'] ?? 'Unlimited' ?></span>
-                            </div>
-                            <div>
-                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Target Year</span>
-                                <span class="text-sm font-black text-slate-700"><?= !empty($scholarship['YearLevel']) ? $scholarship['YearLevel'] : 'All Levels' ?></span>
-                            </div>
-                            <div>
-                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Deadline</span>
-                                <span class="text-sm font-black text-red-600"><?= $deadline ?></span>
-                            </div>
+                        <div class="bg-slate-900 text-white rounded-xl p-3">
+                            <span id="hours" class="block text-2xl font-black">--</span>
+                            <span class="text-[9px] uppercase tracking-widest opacity-70 font-bold">Hours</span>
                         </div>
-                    </div>
-
-                    <div class="mt-8 pt-8 border-t border-slate-100 space-y-3">
-                        <?php if($isActive): ?>
-                            <a href="<?= $is_logged_in ? $role_redirect : 'student_login.php' ?>" class="btn-primary">
-                                Apply for this Grant
-                            </a>
-                        <?php else: ?>
-                            <button disabled class="w-full bg-slate-100 text-slate-400 font-black py-4 rounded-xl cursor-not-allowed border border-slate-200 uppercase tracking-widest text-sm">Applications Closed</button>
-                        <?php endif; ?>
-                        
-                        <button onclick="shareLink()" id="shareBtn" class="btn-ghost">
-                            <i class="fas fa-share-nodes"></i> Copy Share Link
-                        </button>
+                        <div class="bg-slate-900 text-white rounded-xl p-3">
+                            <span id="mins" class="block text-2xl font-black">--</span>
+                            <span class="text-[9px] uppercase tracking-widest opacity-70 font-bold">Mins</span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="bg-green-50 rounded-3xl p-6 border border-green-100 text-center">
-                    <div class="w-12 h-12 bg-white text-green-600 rounded-full flex items-center justify-center text-xl mx-auto mb-3 shadow-sm"><i class="fas fa-shield-check"></i></div>
-                    <h4 class="font-black text-green-900 mb-1">Official TAU Grant</h4>
-                    <p class="text-xs text-green-800/70 font-medium">This scholarship is verified and managed securely through the ScholarLink OSSD system.</p>
+                <!-- 1-Click Apply Command Center -->
+                <div class="glass-panel p-6 rounded-[2rem] shadow-sm border-t-4 border-t-blue-500">
+                    <h3 class="font-black text-slate-900 mb-4 text-lg">Application Status</h3>
+                    
+                    <?php if (!$is_logged_in): ?>
+                        <div class="text-center p-4 bg-slate-50 rounded-xl border border-slate-200 mb-4">
+                            <i class="fas fa-lock text-3xl text-slate-300 mb-2"></i>
+                            <p class="text-sm text-slate-600 font-medium">Log in to your student account to check your eligibility and apply.</p>
+                        </div>
+                        <a href="student_login.php" class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-md">
+                            Log In to Apply
+                        </a>
+
+                    <?php elseif (!$is_student): ?>
+                        <div class="text-center p-4 bg-orange-50 rounded-xl border border-orange-200 text-orange-800">
+                            <i class="fas fa-shield-alt text-2xl mb-2"></i>
+                            <p class="text-sm font-bold">Administrators cannot apply for scholarships.</p>
+                        </div>
+
+                    <?php elseif (strtolower($scholarship['Status']) !== 'active'): ?>
+                        <div class="text-center p-4 bg-slate-100 rounded-xl border border-slate-300 text-slate-600">
+                            <i class="fas fa-times-circle text-2xl mb-2"></i>
+                            <p class="text-sm font-bold">This scholarship is currently closed.</p>
+                        </div>
+
+                    <?php elseif ($has_applied): ?>
+                        <div class="text-center p-6 bg-green-50 rounded-xl border border-green-200">
+                            <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3 text-3xl">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <h4 class="font-black text-green-800 text-lg mb-1">Application Submitted</h4>
+                            <p class="text-xs font-bold text-green-600 uppercase tracking-widest mb-4">Status: <?= htmlspecialchars($application_status) ?></p>
+                            <a href="student/applications.php" class="inline-block bg-white border border-green-200 text-green-700 font-bold py-2 px-6 rounded-lg hover:bg-green-100 transition-colors text-sm">Track Progress</a>
+                        </div>
+
+                    <?php else: ?>
+                        <!-- Eligibility Diagnostics -->
+                        <div class="space-y-3 mb-6">
+                            <?php if (!$is_eligible_gwa): ?>
+                                <div class="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-100">
+                                    <i class="fas fa-times-circle text-red-500 mt-0.5"></i>
+                                    <div>
+                                        <p class="text-sm font-bold text-red-800">GWA Requirement Not Met</p>
+                                        <p class="text-xs text-red-600 mt-1">Your GWA is <?= $student_gwa == 0.00 ? 'not yet encoded' : number_format($student_gwa, 2) ?>. Required is <?= number_format($scholarship['MinimumGWA'], 2) ?>.</p>
+                                    </div>
+                                </div>
+                            <?php else: ?>
+                                <div class="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-100">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                    <span class="text-sm font-bold text-green-800">GWA Requirement Met</span>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if (!empty($missing_docs)): ?>
+                                <div class="flex items-start gap-3 p-3 bg-orange-50 rounded-lg border border-orange-100">
+                                    <i class="fas fa-exclamation-triangle text-orange-500 mt-0.5"></i>
+                                    <div>
+                                        <p class="text-sm font-bold text-orange-800">Missing Vault Documents</p>
+                                        <p class="text-xs text-orange-600 mt-1">You need to upload <?= count($missing_docs) ?> more document(s) to your vault before applying.</p>
+                                    </div>
+                                </div>
+                            <?php else: ?>
+                                <div class="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-100">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                    <span class="text-sm font-bold text-green-800">All Documents Ready in Vault</span>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <?php if ($is_eligible_gwa && empty($missing_docs)): ?>
+                            <form action="actions/process_application.php" method="POST" onsubmit="return confirm('Are you sure you want to submit your application? This will pull your requirements from your Document Vault.');">
+                                <input type="hidden" name="scholarship_id" value="<?= $scholarship_id ?>">
+                                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-black py-4 px-4 rounded-xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
+                                    <i class="fas fa-bolt"></i> 1-Click Apply Now
+                                </button>
+                                <p class="text-[10px] text-center font-bold text-slate-400 mt-3"><i class="fas fa-shield-check text-green-500"></i> Documents will be automatically synced from your vault.</p>
+                            </form>
+                        <?php else: ?>
+                            <button disabled class="w-full bg-slate-200 text-slate-400 font-black py-4 px-4 rounded-xl cursor-not-allowed text-lg">
+                                <i class="fas fa-lock"></i> Apply Now
+                            </button>
+                            <?php if (!empty($missing_docs)): ?>
+                                <a href="student/vault.php" class="mt-3 block w-full text-center bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-3 px-4 rounded-xl transition-colors border border-blue-200">
+                                    Go to Document Vault <i class="fas fa-arrow-right ml-1"></i>
+                                </a>
+                            <?php endif; ?>
+                        <?php endif; ?>
+
+                    <?php endif; ?>
                 </div>
 
             </div>
         </div>
-    </div>
+    </main>
 
+    <!-- Simple Countdown Timer Script -->
     <script>
-        function shareLink() {
-            navigator.clipboard.writeText(window.location.href).then(() => {
-                const btn = document.getElementById('shareBtn');
-                const origHtml = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check text-green-600"></i> Copied to Clipboard!';
-                setTimeout(() => { btn.innerHTML = origHtml; }, 2000);
-            });
+        const countdownEl = document.getElementById('countdown');
+        if (countdownEl) {
+            const deadline = new Date(countdownEl.dataset.deadline).getTime();
+            
+            const timer = setInterval(() => {
+                const now = new Date().getTime();
+                const distance = deadline - now;
+
+                if (distance < 0) {
+                    clearInterval(timer);
+                    document.getElementById('days').innerText = "00";
+                    document.getElementById('hours').innerText = "00";
+                    document.getElementById('mins').innerText = "00";
+                    return;
+                }
+
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const mins = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+
+                document.getElementById('days').innerText = days < 10 ? '0' + days : days;
+                document.getElementById('hours').innerText = hours < 10 ? '0' + hours : hours;
+                document.getElementById('mins').innerText = mins < 10 ? '0' + mins : mins;
+            }, 1000);
         }
     </script>
-
-    <?php include 'includes/chatbot.php'; ?>
 </body>
 </html>
