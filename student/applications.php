@@ -77,9 +77,14 @@ try {
         $jsAppData[$aid] = $app;
     }
 
-} catch (PDOException $e) { 
-    $applications = []; 
-    $jsAppData = []; 
+}
+
+catch (PDOException $e) { 
+    die("<div style='padding: 30px; margin: 30px; background-color: #fee2e2; color: #991b1b; border-radius: 15px; font-family: sans-serif;'>
+            <h2 style='font-size: 24px; margin-bottom: 10px;'>🚨 Mismatch Error sa Applications.php!</h2>
+            <p><strong>System Message:</strong> " . $e->getMessage() . "</p>
+            <p style='margin-top: 15px; font-size: 14px;'>I-copy ang error message na ito at i-send mo sa akin. Aayusin natin yung SQL Query natin!</p>
+         </div>");
 }
 
 // Visual Helpers

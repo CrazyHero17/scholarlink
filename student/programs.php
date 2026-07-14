@@ -28,11 +28,10 @@ try {
     $applied_stmt->execute(['uid' => $user_id]);
     $applied_scholarships = $applied_stmt->fetchAll(PDO::FETCH_COLUMN, 0);
 
-    // ✨ STRICT DUAL SCHOLARSHIP CHECKER
-    // Tinitignan kung mayroon nang "Approved" na scholarship ang estudyanteng ito
-    $app_stmt = $pdo->prepare("SELECT COUNT(*) FROM application WHERE UserID = :uid AND Status = 'Approved'");
+    // ✨ STRICT ONE ACTIVE APPLICATION CHECKER
+    $app_stmt = $pdo->prepare("SELECT COUNT(*) FROM application WHERE UserID = :uid AND Status != 'Rejected'");
     $app_stmt->execute(['uid' => $user_id]);
-    $is_scholar = $app_stmt->fetchColumn() > 0; // True kapag scholar na, False kapag hindi pa
+    $has_active_app = $app_stmt->fetchColumn() > 0; 
 
     $stmt = $pdo->prepare("
         SELECT sch.*, 
@@ -144,10 +143,10 @@ try {
                                 Already Applied ✓
                             </button>
                         
-                        <?php elseif ($is_scholar): ?>
-                            <!-- ✨ DUAL SCHOLARSHIP BLOCKER UI -->
-                            <button disabled class="bg-red-50 text-red-500 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest cursor-not-allowed border border-red-200 w-full lg:w-auto" title="You are currently an active scholar. Multiple scholarships (Government or Private) are strictly prohibited.">
-                                Strict No Dual Grant 🛑
+                        <?php elseif ($has_active_app): ?>
+                            <!-- ✨ ONE ACTIVE APPLICATION BLOCKER UI -->
+                            <button disabled class="bg-red-50 text-red-500 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest cursor-not-allowed border border-red-200 w-full lg:w-auto" title="You already have a pending or approved application. You can only apply for one grant at a time.">
+                                1 Active App Only 🛑
                             </button>
 
                         <?php elseif ($is_gender_mismatch): ?>

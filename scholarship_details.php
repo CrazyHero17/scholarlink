@@ -34,29 +34,56 @@ try {
 
     // 3. STUDENT ELIGIBILITY CHECKER
     $has_applied = false;
+    $has_other_active_app = false;
     $is_eligible_gwa = true;
+    $is_eligible_year = true;
+    $is_eligible_program = true;
     $missing_docs = [];
     $student_gwa = 5.00;
+    $student_year = '';
+    $student_major = '';
     $application_status = '';
 
-    if ($is_student) {
-        // Check if already applied
+    // Check if already applied
         $app_stmt = $pdo->prepare("SELECT Status FROM application WHERE ScholarshipID = ? AND UserID = ?");
         $app_stmt->execute([$scholarship_id, $user_id]);
         $existing_app = $app_stmt->fetch();
         
+        // ✨ BAGONG CHECKER: Mayroon ba siyang ibang application na HINDI rejected?
+        $other_app_stmt = $pdo->prepare("SELECT Status FROM application WHERE UserID = ? AND ScholarshipID != ? AND Status != 'Rejected'");
+        $other_app_stmt->execute([$user_id, $scholarship_id]);
+        if ($other_app_stmt->fetch()) {
+            $has_other_active_app = true;
+        }
+
         if ($existing_app) {
             $has_applied = true;
             $application_status = $existing_app['Status'];
         } else {
-            // Fetch Student Details
-            $user_stmt = $pdo->prepare("SELECT GPA FROM users WHERE UserID = ?");
+            // Fetch Student Details (Kasama na ang Year Level at Major!)
+            $user_stmt = $pdo->prepare("SELECT GPA, YearLevel, Major FROM users WHERE UserID = ?");
             $user_stmt->execute([$user_id]);
             $student_data = $user_stmt->fetch();
+            
             $student_gwa = (float)($student_data['GPA'] ?? 5.00);
+            $student_year = $student_data['YearLevel'] ?? '';
+            $student_major = $student_data['Major'] ?? '';
 
+            // Check GWA
             if ($student_gwa > (float)$scholarship['MinimumGWA'] || $student_gwa == 0.00) {
                 $is_eligible_gwa = false;
+            }
+
+            // Check Year Level (Kung hindi All Levels at hindi tugma sa year mo, block!)
+            $req_year = $scholarship['YearLevel'] ?? 'All Levels';
+            if ($req_year !== 'All Levels' && !empty($req_year) && $req_year !== $student_year) {
+                $is_eligible_year = false;
+            }
+
+            // Check Program / Course (Kung hindi Open to All at hindi tugma sa course mo, block!)
+            $req_program = $scholarship['ProgramName'] ?? 'Open to All';
+            if ($req_program !== 'Open to All' && !empty($req_program) && $req_program !== $student_major) {
+                $is_eligible_program = false;
             }
 
             // Fetch Student Vault
@@ -73,7 +100,7 @@ try {
         }
     }
 
-} catch (PDOException $e) {
+catch (PDOException $e) {
     die("Database Error: " . $e->getMessage());
 }
 ?>
@@ -268,8 +295,21 @@ try {
                         </div>
 
                     <?php else: ?>
-                        <!-- Eligibility Diagnostics -->
+                       <!-- Eligibility Diagnostics -->
                         <div class="space-y-3 mb-6">
+
+                            <!-- Multiple Application Checker -->
+                            <?php if ($has_other_active_app): ?>
+                                <div class="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-100">
+                                    <i class="fas fa-hand-paper text-red-500 mt-0.5"></i>
+                                    <div>
+                                        <p class="text-sm font-bold text-red-800">Multiple Applications Not Allowed</p>
+                                        <p class="text-xs text-red-600 mt-1">You already have a pending or approved application for another grant. You can only apply for one scholarship at a time.</p>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <!-- GWA Check -->
                             <?php if (!$is_eligible_gwa): ?>
                                 <div class="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-100">
                                     <i class="fas fa-times-circle text-red-500 mt-0.5"></i>
@@ -278,31 +318,52 @@ try {
                                         <p class="text-xs text-red-600 mt-1">Your GWA is <?= $student_gwa == 0.00 ? 'not yet encoded' : number_format($student_gwa, 2) ?>. Required is <?= number_format($scholarship['MinimumGWA'], 2) ?>.</p>
                                     </div>
                                 </div>
-                            <?php else: ?>
-                                <div class="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-100">
-                                    <i class="fas fa-check-circle text-green-500"></i>
-                                    <span class="text-sm font-bold text-green-800">GWA Requirement Met</span>
+                            <?php endif; ?>
+
+                            <!-- Year Level Check -->
+                            <?php if (!$is_eligible_year): ?>
+                                <div class="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-100">
+                                    <i class="fas fa-user-times text-red-500 mt-0.5"></i>
+                                    <div>
+                                        <p class="text-sm font-bold text-red-800">Year Level Mismatch</p>
+                                        <p class="text-xs text-red-600 mt-1">This grant is restricted to <?= htmlspecialchars($scholarship['YearLevel']) ?>. Your profile shows you are in <?= htmlspecialchars($student_year) ?>.</p>
+                                    </div>
                                 </div>
                             <?php endif; ?>
 
+                            <!-- Course/Program Check -->
+                            <?php if (!$is_eligible_program): ?>
+                                <div class="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-100">
+                                    <i class="fas fa-ban text-red-500 mt-0.5"></i>
+                                    <div>
+                                        <p class="text-sm font-bold text-red-800">Program Mismatch</p>
+                                        <p class="text-xs text-red-600 mt-1">This is for <?= htmlspecialchars($scholarship['ProgramName']) ?> only. Your major is <?= htmlspecialchars($student_major) ?>.</p>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <!-- Documents Check -->
                             <?php if (!empty($missing_docs)): ?>
                                 <div class="flex items-start gap-3 p-3 bg-orange-50 rounded-lg border border-orange-100">
                                     <i class="fas fa-exclamation-triangle text-orange-500 mt-0.5"></i>
                                     <div>
                                         <p class="text-sm font-bold text-orange-800">Missing Vault Documents</p>
-                                        <p class="text-xs text-orange-600 mt-1">You need to upload <?= count($missing_docs) ?> more document(s) to your vault before applying.</p>
+                                        <p class="text-xs text-orange-600 mt-1">You need to upload <?= count($missing_docs) ?> more document(s) to your vault.</p>
                                     </div>
                                 </div>
-                            <?php else: ?>
+                            <?php endif; ?>
+                            
+                            <!-- All Clear Green Message -->
+                            <?php if (!$has_other_active_app && $is_eligible_gwa && $is_eligible_year && $is_eligible_program && empty($missing_docs)): ?>
                                 <div class="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-100">
                                     <i class="fas fa-check-circle text-green-500"></i>
-                                    <span class="text-sm font-bold text-green-800">All Documents Ready in Vault</span>
+                                    <span class="text-sm font-bold text-green-800">You are eligible for this grant!</span>
                                 </div>
                             <?php endif; ?>
                         </div>
 
                         <!-- Action Buttons -->
-                        <?php if ($is_eligible_gwa && empty($missing_docs)): ?>
+                        <?php if (!$has_other_active_app && $is_eligible_gwa && $is_eligible_year && $is_eligible_program && empty($missing_docs)): ?>
                             <form action="actions/process_application.php" method="POST" onsubmit="return confirm('Are you sure you want to submit your application? This will pull your requirements from your Document Vault.');">
                                 <input type="hidden" name="scholarship_id" value="<?= $scholarship_id ?>">
                                 <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-black py-4 px-4 rounded-xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
@@ -320,8 +381,8 @@ try {
                                 </a>
                             <?php endif; ?>
                         <?php endif; ?>
-
-                    <?php endif; ?>
+                    </div>
+                <?php endif; ?>
                 </div>
 
             </div>
