@@ -1,1 +1,3 @@
+# Ignore environment variables / secrets
 includes/api_config.php
+.env
